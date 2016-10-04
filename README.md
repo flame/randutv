@@ -42,10 +42,10 @@ WITHOUT ANY WARRANTY EXPRESSED OR IMPLIED.
 The new code can be downloaded from https://github.com/flame/randutv/.
 
 The algorithm was originally implemented using the FLAME/C API with 
-a variation of the compact WY transform we call the UT transform. The
-implementation in this directory instead uses the original compact 
-WY transform so that many routines from LAPACK can be employed in a 
-seemless fashion.  
+a variation of the compact WY transform we call the UT transform. 
+However, an implementation that uses the original compact WY transform 
+is also supplied so that many routines from LAPACK can be employed in a 
+seemless fashion.
 
 This implementation as well as the original implementation based on the UT
 transform will eventually be included in the libflame library: 
