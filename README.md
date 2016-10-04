@@ -37,34 +37,7 @@ WITHOUT ANY WARRANTY EXPRESSED OR IMPLIED.
 
 ## Description
 
-[//] # (( To be updated ))
-[//] # ...
-[//] # Householder transformation based QR factorization with column pivoting is an 
-[//] # important algorithm for, for example, determining an approximate basis for 
-[//] # the column space of a matrix. It is, unfortunately, notoriously difficult to 
-[//] # implement for high performance.
-[//] # 
-[//] # Recently, techniques that use randomized sampling have been developed that
-[//] # do achieve high performance by casting most computation in terms of
-[//] # matrix-matrix multiplication.
-[//] # 
-[//] # For example, we describe such an algorithm in our recent paper:
-[//] # 
-[//] #   * P.-G. Martinsson, G. Quintana-Orti, N. Heavner, R. van de Geijn.
-[//] #     "Householder QR Factorization: Adding Randomization for Column Pivoting.
-[//] #     FLAME Working Note #78" 
-[//] #     http://arxiv.org/abs/1512.02671
-[//] # 
-[//] # This directory contains an implementation that we call Householder QR
-[//] # factorization with Randomization for Pivoting (HQRRP), based on the insights 
-[//] # in that paper.
-[//] # 
-[//] # The new code outperforms LAPACK's core routine DGEQP3 both in unicore and 
-[//] # multicore architectures for medium and large matrix sizes, often by large 
-[//] # factor. The new implementation comes with an interface that is plug 
-[//] # compatible with DGEQP3. 
-[//] # ...
-
+(( To be updated ))
 
 The new code can be downloaded from https://github.com/flame/randutv/.
 
@@ -90,31 +63,9 @@ We will appreciate feedback from the community on the use of this code.
 We ask those who benefit from this work 
 to cite both of the following articles:
 
-[//] # ```
-[//] # (( To be updated ))
-[//] # @ARTICLE{martinsson2015blocked,
-[//] #   title={Blocked rank-revealing QR factorizations: How randomized sampling can be used to avoid single-vector pivoting},
-[//] #   author={Martinsson, Per-Gunnar},
-[//] #   journal={arXiv preprint arXiv:1505.08115},
-[//] #   year={2015},
-[//] #   month={may},
-[//] # }
-[//] # 
-[//] # @ARTICLE{2015arXiv151202671M,
-[//] #   author = {{Martinsson}, P.-G. and {Quintana-Ort\’{\i}}, G. and {Heavner}, N. and
-[//] #         {van de Geijn}, R.},
-[//] #    title = "{Householder {QR} Factorization: Adding Randomization for Column Pivoting. {FLAME} {W}orking {N}ote \#78}",
-[//] #  journal = {ArXiv e-prints},
-[//] # archivePrefix = "arXiv",
-[//] #   eprint = {1512.02671},
-[//] # primaryClass = "math.NA",
-[//] # keywords = {Mathematics - Numerical Analysis, Computer Science - Numerical Analysis},
-[//] #     year = 2015,
-[//] #    month = dec,
-[//] #   adsurl = {http://adsabs.harvard.edu/abs/2015arXiv151202671M},
-[//] #  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
-[//] # }
-[//] # ```
+```
+(( To be updated ))
+```
 
 ## Details
 
