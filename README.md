@@ -119,12 +119,6 @@ int NoFLA_UTV_WY_blk_var2(
 // pp:       Oversampling size. Usual values for pp are 5, 10, etc.
 // n_iter:   Number of "power" iterations. Usual values are 2.
 //
-// Final comments:
-// ---------------
-// This code has been created from a libflame code. Hence, you can find some
-// commented calls to libflame routines. We have left them to make it easier
-// to interpret the meaning of the C code.
-//
 ```
 
 This routine is stored in the file `NoFLA_UTV_WY_blk_var2.c`.
@@ -135,8 +129,8 @@ The file `simple_test.c` contain a main program to test it.
 The new code contains the following main routine:
 
 ```
-int FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U, 
-        int build_v, FLA_Obj V, int nb_alg, int pp, int n_iter ) {
+FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U, 
+              int build_v, FLA_Obj V, int nb_alg, int pp, int n_iter ) {
 //
 // randUTV: It computes the UTV factorization of matrix A.
 //
