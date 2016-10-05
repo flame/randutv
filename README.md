@@ -37,7 +37,7 @@ WITHOUT ANY WARRANTY EXPRESSED OR IMPLIED.
 
 ## Description
 
-(( To be updated ))
+(( To be updated soon ))
 
 The new code can be downloaded from https://github.com/flame/randutv/.
 
@@ -63,7 +63,7 @@ We ask those who benefit from this work
 to cite both of the following articles:
 
 ```
-(( To be updated ))
+(( To be updated soon ))
 ```
 
 ## Details
