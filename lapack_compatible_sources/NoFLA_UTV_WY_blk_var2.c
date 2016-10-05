@@ -1,3 +1,40 @@
+/*
+===============================================================================
+Authors
+===============================================================================
+
+Per-Gunnar Martinsson
+  Dept. of Applied Mathematics, 
+  University of Colorado at Boulder, 
+  526 UCB, Boulder, CO 80309-0526, USA
+
+Gregorio Quintana-Orti
+  Depto. de Ingenieria y Ciencia de Computadores, 
+  Universitat Jaume I, 
+  12.071 Castellon, Spain
+
+Nathan Heavner
+  Dept. of Applied Mathematics, 
+  University of Colorado at Boulder, 
+  526 UCB, Boulder, CO 80309-0526, USA
+
+===============================================================================
+Copyright
+===============================================================================
+
+Copyright (C) 2016, 
+  Universitat Jaume I,
+  University of Colorado at Boulder.
+
+===============================================================================
+Disclaimer
+===============================================================================
+
+This code is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY EXPRESSED OR IMPLIED.
+
+*/
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
