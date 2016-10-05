@@ -55,8 +55,7 @@ We will appreciate feedback from the community on the use of this code.
 
 ## Performance benefit
 
-![alt tag](./speedups_utv_marbore_mkl_nb64_1c.png)
-![alt tag](./speedups_utv_marbore_mkl_nb64_16c.png)
+![alt tag](./utv_marbore_speedups_nb64.png)
 
 ## Citing this work
 
