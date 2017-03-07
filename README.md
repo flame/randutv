@@ -37,7 +37,28 @@ WITHOUT ANY WARRANTY EXPRESSED OR IMPLIED.
 
 ## Description
 
-(( To be updated soon ))
+This code repository contains several implementations 
+of an algorithm for computing a so called UTV factorization efficiently.
+
+Given a matrix A, the algorithm `randUTV` 
+computes a factorization A = U T V*, where 
+U and V have orthonormal columns,
+V* is the transpose of V,
+and T is triangular (either upper or lower, whichever is preferred).
+
+The algorithm `randUTV` is developed primarily
+to be a fast and easily parallelized alternative
+to algorithms for computing the Singular Value Decomposition (SVD).
+`randUTV` provides accuracy very close to that of the SVD for problems
+such as low-rank approximation, solving ill-conditioned linear systems,
+determining bases for various subspaces associated with the matrix, etc.
+Moreover, `randUTV` produces
+highly accurate approximations to the singular values of A.
+Unlike the SVD,
+the randomized algorithm proposed builds a UTV factorization in an
+incremental, single-stage, and non-iterative way, making it
+possible to halt the factorization process 
+once a specified tolerance has been met.
 
 The new code can be downloaded from https://github.com/flame/randutv/.
 
@@ -45,7 +66,7 @@ The algorithm was originally implemented using the FLAME/C API with
 a variation of the compact WY transform we call the UT transform. 
 However, an implementation that uses the original compact WY transform 
 is also supplied so that many routines from LAPACK can be employed in a 
-seemless fashion.
+seamless fashion.
 
 This implementation as well as the original implementation based on the UT
 transform will eventually be included in the libflame library: 
@@ -57,13 +78,32 @@ We will appreciate feedback from the community on the use of this code.
 
 ![alt tag](./utv_marbore_speedups_nb64.png)
 
+Several experiments demonstrate that in comparison to column pivoted QR, 
+which is another factorization that is often used 
+as a relatively economic alternative to the SVD,
+`randUTV` compares favorably in terms of speed while providing far higher
+accuracy.
+
 ## Citing this work
 
 We ask those who benefit from this work 
 to cite both of the following articles:
 
 ```
-(( To be updated soon ))
+@ARTICLE{2017arXiv170300998M,
+   author = {{Martinsson}, P.-G. and {Quintana-Orti}, G. and {Heavner}, N.
+	},
+    title = "{randUTV: A blocked randomized algorithm for computing a rank-revealing UTV factorization}",
+  journal = {ArXiv e-prints},
+archivePrefix = "arXiv",
+   eprint = {1703.00998},
+ primaryClass = "math.NA",
+ keywords = {Mathematics - Numerical Analysis},
+     year = 2017,
+    month = mar,
+   adsurl = {http://adsabs.harvard.edu/abs/2017arXiv170300998M},
+  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
 ```
 
 ## Details
