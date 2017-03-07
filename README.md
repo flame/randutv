@@ -87,7 +87,7 @@ accuracy.
 ## Citing this work
 
 We ask those who benefit from this work 
-to cite both of the following articles:
+to cite the following reports and articles:
 
 ```
 @ARTICLE{2017arXiv170300998M,
