@@ -41,9 +41,9 @@ This code repository contains several implementations
 of an algorithm for computing a so called UTV factorization efficiently.
 
 Given a matrix A, the algorithm `randUTV` 
-computes a factorization A = U T V*, where 
+computes a factorization A = U T V', where 
 U and V have orthonormal columns,
-V* is the transpose of V,
+V' is the transpose of V,
 and T is triangular (either upper or lower, whichever is preferred).
 
 The algorithm `randUTV` is developed primarily
