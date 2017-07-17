@@ -35,14 +35,18 @@ WITHOUT ANY WARRANTY EXPRESSED OR IMPLIED.
 
 */
 
+
+// ============================================================================
+// Compilation declarations.
+
+#undef PROFILE
+
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "FLAME.h"
 #include "FLA_UTV_UT_blk_var1.h"
-
-
-#undef PROFILE
 
 
 // ============================================================================
@@ -145,14 +149,14 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
           A12copy, A01copy;
   int     bRow, m_A, n_A, dtype_A, j;
 #ifdef PROFILE
-  double  t1, t2, tt_by, 
-          tt_qr1_fact, tt_qr1_updt_a, tt_qr1_updt_v, 
-          tt_qr2_fact, tt_qr2_updt_a, tt_qr2_updt_u, 
+  double  t1, t2, tt_gg, tt_by, 
+          tt_qrr_fact, tt_qrr_updt_a, tt_qrr_updt_v, 
+          tt_qrl_fact, tt_qrl_updt_a, tt_qrl_updt_u, 
           tt_svd_fact, tt_svd_updt_a, tt_svd_updt_uv;
 #endif
 
   // Executable Statements.
-  //// printf( "%% FLA_UTV_UT_blk_var1.\n" );
+  //// printf( "%% FLA_UTV_UT_blk_var1\n" );
 
   // Set seed for random generator.
   srand( 12 );
@@ -180,13 +184,14 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
   }
 
 #ifdef PROFILE
+  tt_gg          = 0.0;
   tt_by          = 0.0;
-  tt_qr1_fact    = 0.0;
-  tt_qr1_updt_a  = 0.0;
-  tt_qr1_updt_v  = 0.0;
-  tt_qr2_fact    = 0.0;
-  tt_qr2_updt_a  = 0.0;
-  tt_qr2_updt_u  = 0.0;
+  tt_qrr_fact    = 0.0;
+  tt_qrr_updt_a  = 0.0;
+  tt_qrr_updt_v  = 0.0;
+  tt_qrl_fact    = 0.0;
+  tt_qrl_updt_a  = 0.0;
+  tt_qrl_updt_u  = 0.0;
   tt_svd_fact    = 0.0;
   tt_svd_updt_a  = 0.0;
   tt_svd_updt_uv = 0.0;
@@ -278,120 +283,163 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 
     // ------------------------------------------------------------------------
 
-    // %%% Compute the "sampling" matrix Y.
-    // Aloc = T([J2,I3],[J2,J3]);
-    // Y    = Aloc'*randn(m-(j-1)*b,b+p);
-#ifdef PROFILE
-    t1 = FLA_Clock();
-#endif
-    FLA_Part_1x2( GB,  & GBl, & None1,    bRow + pp, FLA_LEFT );
-    FLA_Part_1x2( YB,  & YBl, & None1,    bRow + pp, FLA_LEFT );
-    MyFLA_Normal_random_matrix( GBl );
-    FLA_Gemm( FLA_TRANSPOSE, FLA_NO_TRANSPOSE,
-              FLA_ONE, ABR, GBl, FLA_ZERO, YBl );
+    // Perform the following processing only if there are more iterations.
+    if( FLA_Obj_width( A12 ) > 0 ) {
 
-    // %%% Perform "power iteration" if requested.
-    // for i_iter = 1:n_iter
-    //   Y = Aloc'*(Aloc*Y);
-    // end
-    for( j = 0; j < n_iter; j++ ) {
-      // Reuse GBl.
-      FLA_Gemm( FLA_NO_TRANSPOSE, FLA_NO_TRANSPOSE,
-                FLA_ONE, ABR, YBl, FLA_ZERO, GBl );
+      //
+      // Generate normal random matrix G.
+      // ================================
+      //
+
+      // %%% Compute the "sampling" matrix Y.
+      // Aloc = T([J2,I3],[J2,J3]);
+      // Y    = Aloc'*randn(m-(j-1)*b,b+p);
+#ifdef PROFILE
+      t1 = FLA_Clock();
+#endif
+      FLA_Part_1x2( GB,  & GBl, & None1,    bRow + pp, FLA_LEFT );
+      FLA_Part_1x2( YB,  & YBl, & None1,    bRow + pp, FLA_LEFT );
+      MyFLA_Normal_random_matrix( GBl );
+#ifdef PROFILE
+      t2 = FLA_Clock();
+      tt_gg += ( t2 - t1 );
+#endif
+
+      //
+      // Compute the sampling matrix Y.
+      // ==============================
+      //
+
+#ifdef PROFILE
+      t1 = FLA_Clock();
+#endif
       FLA_Gemm( FLA_TRANSPOSE, FLA_NO_TRANSPOSE,
                 FLA_ONE, ABR, GBl, FLA_ZERO, YBl );
+
+      // %%% Perform "power iteration" if requested.
+      // for i_iter = 1:n_iter
+      //   Y = Aloc'*(Aloc*Y);
+      // end
+      for( j = 0; j < n_iter; j++ ) {
+        // Reuse GBl.
+        FLA_Gemm( FLA_NO_TRANSPOSE, FLA_NO_TRANSPOSE,
+                  FLA_ONE, ABR, YBl, FLA_ZERO, GBl );
+        FLA_Gemm( FLA_TRANSPOSE, FLA_NO_TRANSPOSE,
+                  FLA_ONE, ABR, GBl, FLA_ZERO, YBl );
+      }
+#ifdef PROFILE
+      t2 = FLA_Clock();
+      tt_by += ( t2 - t1 );
+#endif
+
+      //
+      // Update A from the right side. Update V if asked.
+      // ================================================
+      //
+
+      // %%% Construct the local transform to be applied "from the right".
+      // if (p > 0)
+      //   [~,~,Jtmp] = qr(Y,0);
+      //   [Vloc,~,~] = qr(Y(:,Jtmp(1:b)));
+      // else
+      //   [Vloc,~]   = LOCAL_nonpiv_QR(Y,b);
+      // end
+#ifdef PROFILE
+      t1 = FLA_Clock();
+#endif
+      FLA_Part_2x2( S1,  & S1tl,  & None1,
+                         & None2, & None3,   bRow, bRow, FLA_TL );
+      if( pp > 0 ) {
+        MyFLA_QRP_UT_unb( 1, bRow, YBl, S1tl );
+      } else {
+        MyFLA_QRP_UT_unb( 0, bRow, YBl, S1tl );
+      }
+#ifdef PROFILE
+      t2 = FLA_Clock();
+      tt_qrr_fact += ( t2 - t1 );
+#endif
+
+      // %%% Apply the pivot matrix to rotate maximal mass into the "J2" column.
+      // T(:,[J2,J3])  = T(:,[J2,J3])*Vloc;
+#ifdef PROFILE
+      t1 = FLA_Clock();
+#endif
+      FLA_Part_2x2( YBl,   & YBl1, & None1,
+                           & YBl2, & None2,   bRow, bRow, FLA_TL );
+
+      // Update matrix A with transformations from the first QR.
+      MyFLA_Apply_Q_UT_rnfc_blk( YBl1, YBl2, S1tl, B1, B2 );
+#ifdef PROFILE
+      t2 = FLA_Clock();
+      tt_qrr_updt_a += ( t2 - t1 );
+#endif
+
+      // Update matrix V with transformations from the first QR.
+#ifdef PROFILE
+      t1 = FLA_Clock();
+#endif
+      if( build_v == 1 ) {
+        MyFLA_Apply_Q_UT_rnfc_blk( YBl1, YBl2, S1tl, D1, D2 );
+      }
+#ifdef PROFILE
+      t2 = FLA_Clock();
+      tt_qrr_updt_v += ( t2 - t1 );
+#endif
     }
+
+    // Perform the following processing only if there are rows in A21.
+    if( FLA_Obj_length( A21 ) > 0 ) {
+
+      //
+      // Update A from the left side. Update U if asked.
+      // ===============================================
+      //
+
+      // %%% Next determine the rotations to be applied "from the left".
+      // [Uloc,Dloc]      = LOCAL_nonpiv_QR(T([J2,I3],J2));
+      // Factorize [ A11; A21 ].
 #ifdef PROFILE
-    t2 = FLA_Clock();
-    tt_by += ( t2 - t1 );
+      t1 = FLA_Clock();
+#endif
+      FLA_Merge_2x1( A11,
+                     A21,   & AB1 );
+      FLA_Part_2x2( S2,  & S2tl,  & None1,
+                         & None2, & None3,   bRow, bRow, FLA_TL );
+      MyFLA_QRP_UT_unb( 0, bRow, AB1, S2tl );
+#ifdef PROFILE
+      t2 = FLA_Clock();
+      tt_qrl_fact += ( t2 - t1 );
 #endif
 
-    // %%% Construct the local transform to be applied "from the left".
-    // if (p > 0)
-    //   [~,~,Jtmp] = qr(Y,0);
-    //   [Vloc,~,~] = qr(Y(:,Jtmp(1:b)));
-    // else
-    //   [Vloc,~]   = LOCAL_nonpiv_QR(Y,b);
-    // end
+      // Update rest of matrix A with transformations from the second QR.
 #ifdef PROFILE
-    t1 = FLA_Clock();
+      t1 = FLA_Clock();
 #endif
-    FLA_Part_2x2( S1,  & S1tl,  & None1,
-                       & None2, & None3,   bRow, bRow, FLA_TL );
-    if( pp > 0 ) {
-      MyFLA_QRP_UT_unb( 1, bRow, YBl, S1tl );
-    } else {
-      MyFLA_QRP_UT_unb( 0, bRow, YBl, S1tl );
+      MyFLA_Apply_Q_UT_lhfc_blk( A11, A21, S2tl, A12, A22 );
+#ifdef PROFILE
+      t2 = FLA_Clock();
+      tt_qrl_updt_a += ( t2 - t1 );
+#endif
+
+      // Update matrix U with transformations from the second QR.
+#ifdef PROFILE
+      t1 = FLA_Clock();
+#endif
+      if( build_u == 1 ) {
+        MyFLA_Apply_Q_UT_rnfc_blk( A11, A21, S2tl, C1, C2 );
+      }
+#ifdef PROFILE
+      t2 = FLA_Clock();
+      tt_qrl_updt_u += ( t2 - t1 );
+#endif
+
+      MyFLA_Zero_strict_lower_triangular( AB1 );
     }
-#ifdef PROFILE
-    t2 = FLA_Clock();
-    tt_qr1_fact += ( t2 - t1 );
-#endif
 
-    // %%% Apply the pivot matrix to rotate maximal mass into the "J2" column.
-    // T(:,[J2,J3])  = T(:,[J2,J3])*Vloc;
-#ifdef PROFILE
-    t1 = FLA_Clock();
-#endif
-    FLA_Part_2x2( YBl,   & YBl1, & None1,
-                         & YBl2, & None2,   bRow, bRow, FLA_TL );
-
-    // Update matrix A with transformations from the first QR.
-    MyFLA_Apply_Q_UT_rnfc_blk( YBl1, YBl2, S1tl, B1, B2 );
-#ifdef PROFILE
-    t2 = FLA_Clock();
-    tt_qr1_updt_a += ( t2 - t1 );
-#endif
-
-    // Update matrix V with transformations from the first QR.
-#ifdef PROFILE
-    t1 = FLA_Clock();
-#endif
-    if( build_v == 1 ) {
-      MyFLA_Apply_Q_UT_rnfc_blk( YBl1, YBl2, S1tl, D1, D2 );
-    }
-#ifdef PROFILE
-    t2 = FLA_Clock();
-    tt_qr1_updt_v += ( t2 - t1 );
-#endif
-
-    // %%% Next determine the rotations to be applied "from the left".
-    // [Uloc,Dloc]      = LOCAL_nonpiv_QR(T([J2,I3],J2));
-    // Factorize [ A11; A21 ].
-#ifdef PROFILE
-    t1 = FLA_Clock();
-#endif
-    FLA_Merge_2x1( A11,
-                   A21,   & AB1 );
-    FLA_Part_2x2( S2,  & S2tl,  & None1,
-                       & None2, & None3,   bRow, bRow, FLA_TL );
-    MyFLA_QRP_UT_unb( 0, bRow, AB1, S2tl );
-#ifdef PROFILE
-    t2 = FLA_Clock();
-    tt_qr2_fact += ( t2 - t1 );
-#endif
-
-    // Update rest of matrix A with transformations from the second QR.
-#ifdef PROFILE
-    t1 = FLA_Clock();
-#endif
-    MyFLA_Apply_Q_UT_lhfc_blk( A11, A21, S2tl, A12, A22 );
-#ifdef PROFILE
-    t2 = FLA_Clock();
-    tt_qr2_updt_a += ( t2 - t1 );
-#endif
-
-    // Update matrix U with transformations from the second QR.
-#ifdef PROFILE
-    t1 = FLA_Clock();
-#endif
-    if( build_u == 1 ) {
-      MyFLA_Apply_Q_UT_rnfc_blk( A11, A21, S2tl, C1, C2 );
-    }
-#ifdef PROFILE
-    t2 = FLA_Clock();
-    tt_qr2_updt_u += ( t2 - t1 );
-#endif
+    //
+    // Compute SVD of A11, and update matrices A, U, and V.
+    // ====================================================
+    //
 
     // [Utmp,Dtmp,Wloc] = svd(Dloc(1:b,:));
     // Dloc(1:b,:)      = Dtmp;
@@ -414,7 +462,6 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
                        & None2, & None3,   bRow, bRow, FLA_TL );
 
     // Compute miniSVD.
-    MyFLA_Zero_strict_lower_triangular( AB1 );
     MyFLA_Compute_svd( A11, SUtl, svl, SVTtl, bRow );
     MyFLA_Zero( A11 );
     MyFLA_Copy_vector_into_diagonal( svl, A11 );
@@ -530,26 +577,27 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
   FLA_Obj_free( & SVT );
 
 #ifdef PROFILE
+  printf( "%% tt_gen_g:       %le\n", tt_gg );
   printf( "%% tt_build_y:     %le\n", tt_by );
-  printf( "%% tt_qr1:         %le\n", tt_qr1_fact + tt_qr1_updt_a + 
-                                      tt_qr1_updt_v );
-  printf( "%%     tt_qr1_fact:    %le\n", tt_qr1_fact );
-  printf( "%%     tt_qr1_updt_a:  %le\n", tt_qr1_updt_a );
-  printf( "%%     tt_qr1_updt_v:  %le\n", tt_qr1_updt_v );
-  printf( "%% tt_qr2:         %le\n", tt_qr2_fact + tt_qr2_updt_a + 
-                                      tt_qr2_updt_u );
-  printf( "%%     tt_qr2_fact:    %le\n", tt_qr2_fact );
-  printf( "%%     tt_qr2_updt_a:  %le\n", tt_qr2_updt_a );
-  printf( "%%     tt_qr2_updt_u:  %le\n", tt_qr2_updt_u );
+  printf( "%% tt_qrr:         %le\n", tt_qrr_fact + tt_qrr_updt_a + 
+                                      tt_qrr_updt_v );
+  printf( "%%     tt_qrr_fact:    %le\n", tt_qrr_fact );
+  printf( "%%     tt_qrr_updt_a:  %le\n", tt_qrr_updt_a );
+  printf( "%%     tt_qrr_updt_v:  %le\n", tt_qrr_updt_v );
+  printf( "%% tt_qrl:         %le\n", tt_qrl_fact + tt_qrl_updt_a + 
+                                      tt_qrl_updt_u );
+  printf( "%%     tt_qrl_fact:    %le\n", tt_qrl_fact );
+  printf( "%%     tt_qrl_updt_a:  %le\n", tt_qrl_updt_a );
+  printf( "%%     tt_qrl_updt_u:  %le\n", tt_qrl_updt_u );
   printf( "%% tt_svd:         %le\n", tt_svd_fact + tt_svd_updt_a + 
                                       tt_svd_updt_uv);
   printf( "%%     tt_svd_fact:    %le\n", tt_svd_fact );
   printf( "%%     tt_svd_updt_a:  %le\n", tt_svd_updt_a );
   printf( "%%     tt_svd_updt_uv: %le\n", tt_svd_updt_uv );
   printf( "%% total_time:     %le\n",
-          tt_by + 
-          tt_qr1_fact + tt_qr1_updt_a + tt_qr1_updt_v + 
-          tt_qr2_fact + tt_qr2_updt_a + tt_qr2_updt_u + 
+          tt_gg + tt_by +
+          tt_qrr_fact + tt_qrr_updt_a + tt_qrr_updt_v + 
+          tt_qrl_fact + tt_qrl_updt_a + tt_qrl_updt_u + 
           tt_svd_fact + tt_svd_updt_a + tt_svd_updt_uv );
 #endif
 
@@ -671,7 +719,7 @@ static FLA_Error MyFLA_Copy_vector_into_diagonal( FLA_Obj v, FLA_Obj A ) {
 
   case FLA_DOUBLE:
     {
-      int     mn_A, rs_A, cs_A, i, j;
+      int     mn_A, rs_A, cs_A, i;
       double  * buff_v, * buff_A;
 
       buff_v  = ( double * ) FLA_Obj_buffer_at_view( v );
@@ -734,25 +782,26 @@ static double MyFLA_Normal_random_number( double mu, double sigma ) {
 //
 // It computes and returns a normal random number.
 //
-  static int     alternate_calls = 0;
+  static int     alternate = 0;
   static double  b1, b2;
-  double         c1, c2, a, factor;
+  double         c1, c2, a, factor, denom;
 
   // Quick return.
-  if( alternate_calls == 1 ) {
-    alternate_calls = ! alternate_calls;
+  if( alternate == 1 ) {
+    alternate = ! alternate;
     return( mu + sigma * b2 );
   }
   // Main loop.
+  denom = ( ( double ) RAND_MAX ) + 1.0;
   do {
-    c1 = -1.0 + 2.0 * ( (double) rand() / RAND_MAX );
-    c2 = -1.0 + 2.0 * ( (double) rand() / RAND_MAX );
-    a = c1 * c1 + c2 * c2;
-  } while ( ( a == 0 )||( a >= 1 ) );
-  factor = sqrt( ( -2 * log( a ) ) / a );
-  b1 = c1 * factor;
-  b2 = c2 * factor;
-  alternate_calls = ! alternate_calls;
+    c1 = -1.0 + 2.0 * rand() / denom;
+    c2 = -1.0 + 2.0 * rand() / denom;
+    a  = c1 * c1 + c2 * c2;
+  } while ( ( a == 0.0 )||( a >= 1.0 ) );
+  factor    = sqrt( ( -2.0 * log( a ) ) / a );
+  b1        = c1 * factor;
+  b2        = c2 * factor;
+  alternate = ! alternate;
   return( mu + sigma * b1 );
 }
 
@@ -761,12 +810,12 @@ static FLA_Error MyFLA_Apply_Q_UT_rnfc_blk( FLA_Obj U11, FLA_Obj U21,
                      FLA_Obj T,
                      FLA_Obj B1, FLA_Obj B2 ) {
 //
-// Apply a unitary matrix Q to a matrix B from the right:
-//   B = B * Q
+// It applies a unitary matrix Q to a matrix B from the right:
+//   B = B * Q,
 // where:
 //   B = [ B1; B2 ]
 //   U = [ U11; U21 ]
-//   Q = ( I - U * inv( T ) * U' ).
+//   Q = I - U * inv( T ) * U'.
 //
   FLA_Obj  W;
 
@@ -822,11 +871,11 @@ static FLA_Error MyFLA_Apply_Q_UT_lhfc_blk( FLA_Obj U11, FLA_Obj U21,
 //
 // Apply the conjugate-transpose of a unitary matrix Q to a matrix B from the
 // left:
-//   B := Q' B
+//   B := Q' * B,
 // where:
-//   B = [ B1; B2 ]
-//   U = [ U11; U21 ]
-//   Q = ( I - U inv(T) U' )'.
+//   B = [ B1; B2 ].
+//   U = [ U11; U21 ].
+//   Q = I - U * inv(T) * U'.
 //
   FLA_Obj  W;
 
