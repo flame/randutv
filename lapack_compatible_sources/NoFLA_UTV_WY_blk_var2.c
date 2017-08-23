@@ -783,24 +783,24 @@ static int NoFLA_Compute_svd(
                int nb_alg ) {
 // Compute:  U, and V of svd of A.
   char    all = 'A';
-  double  * buff_Workspace;
-  int     info, max_mn_A, min_mn_A, lwork;
+  double  * buff_Workspace, dwork;
+  int     info, lwork;
 
-  // Some initializations.
-  max_mn_A = max( m_A, n_A );
-  min_mn_A = min( m_A, n_A );
+  // Compute optimal workspace length. 
+  lwork = -1;
+  dgesvd_( & all, & all, & m_A, & n_A,
+           buff_A, & ldim_A, buff_sv,
+           buff_U, & ldim_U, buff_V, & ldim_V,
+           & dwork, & lwork, & info );
+  if( info != 0 ) {
+    fprintf( stderr, " *** Info after dgesvd_: %d \n", info );
+  }
+  lwork = ( int ) dwork;
+  //// printf( "  Optimal lwork: %d\n", lwork );
 
   // Create Workspace.
-  // According to lapack's documentation,
-  // workspace for dgebd2 should be: max( m, n ), and
-  // workspace for dbdsqr should be: 2*n.
-  // However, dgebd2 seems to need more.  So, workspace is increased.
-  lwork  = max( 1,
-                max( 3 * min_mn_A + max_mn_A, 5 * min_mn_A ) )
-           + nb_alg * max_mn_A + 100000 + 10 * m_A + 10 * n_A;
   //// FLA_Obj_create( FLA_Obj_datatype( A ), lwork, 1, 0, 0, & Workspace );
   buff_Workspace = ( double * ) malloc( lwork * sizeof( double ) );
-  //// printf( " lwork: %d\n ", lwork );
 
   // Call to SUBROUTINE DGESVD( JOBU, JOBVT, M, N, A, LDA, S, U, LDU, VT, LDVT,
   //                            WORK, LWORK, INFO )
@@ -809,7 +809,7 @@ static int NoFLA_Compute_svd(
            buff_U, & ldim_U, buff_V, & ldim_V,
            buff_Workspace, & lwork, & info );
   if( info != 0 ) {
-    fprintf( stderr, " *** Info after dgesvd_f: %d \n", info );
+    fprintf( stderr, " *** Info after dgesvd_: %d \n", info );
   }
 
   // Remove object Work.
