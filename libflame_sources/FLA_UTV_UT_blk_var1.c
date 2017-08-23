@@ -926,16 +926,13 @@ static FLA_Error MyFLA_Compute_svd( FLA_Obj A, FLA_Obj U, FLA_Obj sv,
                      FLA_Obj V, int nb_alg ) {
 // Compute:  U, vs, and V of svd of A.
   FLA_Obj  Workspace;
-  double   * buff_A, * buff_U, * buff_sv, * buff_V, * buff_Workspace;
-  int      info, m_A, n_A, max_mn_A, min_mn_A, 
-           ldim_A, ldim_U, ldim_V, lwork;
+  double   * buff_A, * buff_U, * buff_sv, * buff_V, * buff_Workspace, dwork;
+  int      info, m_A, n_A, ldim_A, ldim_U, ldim_V, lwork;
   char     all = 'A';
 
   // Some initializations.
   m_A      = FLA_Obj_length( A );
   n_A      = FLA_Obj_width( A );
-  max_mn_A = max( m_A, n_A );
-  min_mn_A = min( m_A, n_A );
   buff_A   = ( double * ) FLA_Obj_buffer_at_view( A );
   ldim_A   = FLA_Obj_col_stride( A );
   buff_U   = ( double * ) FLA_Obj_buffer_at_view( U );
@@ -944,17 +941,21 @@ static FLA_Error MyFLA_Compute_svd( FLA_Obj A, FLA_Obj U, FLA_Obj sv,
   buff_V   = ( double * ) FLA_Obj_buffer_at_view( V );
   ldim_V   = FLA_Obj_col_stride( V );
 
+  // Compute optimal workspace length.
+  lwork = -1;
+  dgesvd_( & all, & all, & m_A, & n_A, 
+           buff_A, & ldim_A, buff_sv, 
+           buff_U, & ldim_U, buff_V, & ldim_V,
+           & dwork, & lwork, & info );
+  if( info != 0 ) {
+    fprintf( stderr, " *** Info after dgesvd_: %d \n", info );
+  }
+  lwork = ( int ) dwork;
+
   // Create object Workspace.
-  // According to lapack's documentation,
-  // workspace for dgebd2 should be: max( m, n ), and
-  // workspace for dbdsqr should be: 2*n.
-  // However, dgebd2 seems to need more.  So, workspace is increased.
-  lwork  = max( 1, 
-                max( 3 * min_mn_A + max_mn_A, 5 * min_mn_A ) ) 
-           + nb_alg * max_mn_A + 100000 + 10 * m_A + 10 * n_A;
   FLA_Obj_create( FLA_Obj_datatype( A ), lwork, 1, 0, 0, & Workspace );
   buff_Workspace = ( double * ) FLA_Obj_buffer_at_view( Workspace );
-  //// printf( " lwork: %d\n ", lwork );
+  //// printf( "  Optimal lwork: %d\n", lwork );
 
   // Call to SUBROUTINE DGESVD( JOBU, JOBVT, M, N, A, LDA, S, U, LDU, VT, LDVT,
   //                            WORK, LWORK, INFO )
@@ -963,7 +964,7 @@ static FLA_Error MyFLA_Compute_svd( FLA_Obj A, FLA_Obj U, FLA_Obj sv,
            buff_U, & ldim_U, buff_V, & ldim_V,
            buff_Workspace, & lwork, & info );
   if( info != 0 ) {
-    fprintf( stderr, " *** Info after dgesvd_f: %d \n", info );
+    fprintf( stderr, " *** Info after dgesvd_: %d \n", info );
   }
 
   // Remove object Workspace.
