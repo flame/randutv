@@ -141,7 +141,7 @@ int NoFLA_UTV_WY_blk_var2(
 //   * Compact WY transformations are used instead of UT transformations.
 //
 // Matrices A, U, and V must be stored in column-order.
-// If provided, matrices U,V must be square.
+// If provided, matrices U,V must be square and with the right dimensions.
 //
 // Arguments:
 // ----------
