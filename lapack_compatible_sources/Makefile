@@ -12,7 +12,7 @@ simple_test.x : simple_test.o
 	$(LD) $(LDFLAGS) \
             -o simple_test.x \
             simple_test.o \
-            NoFLA_UTV_WY_blk_var2.c \
+            NoFLA_UTV_WY_blk_var2.o \
             /usr/local/mylib/lapack/liblapack_340_p4b64_gf.a \
             /usr/local/mylib/lapack/librefblas_340_p4b64_gf.a \
             -lm -lgfortran
