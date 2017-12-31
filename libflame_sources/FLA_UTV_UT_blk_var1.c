@@ -111,6 +111,9 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 //   * Use of Householder UT block transformations.
 //   * Use of libflame.
 //
+// Matrices A, U, and V must be stored in column-order.
+// If provided, matrices U,V must be square.
+//
 // Arguments:
 // ----------
 // A:       (input)  Matrix to be factorized.
@@ -127,12 +130,6 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
   FLA_Obj ATL, ATR,    A00, A01, A02,
           ABL, ABR,    A10, A11, A12,
                        A20, A21, A22;
-  FLA_Obj UTL, UTR,    U00, U01, U02,
-          UBL, UBR,    U10, U11, U12,
-                       U20, U21, U22;
-  FLA_Obj VTL, VTR,    V00, V01, V02,
-          VBL, VBR,    V10, V11, V12,
-                       V20, V21, V22;
   FLA_Obj YT,          Y0,
           YB,          Y1,
                        Y2;
@@ -140,16 +137,17 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
           GB,          G1,
                        G2;
   FLA_Obj BL, BR,      B0,  B1,  B2;
-  FLA_Obj CL, CR,      C0,  C1,  C2;
-  FLA_Obj DL, DR,      D0,  D1,  D2;
+  FLA_Obj UL, UR,      U0,  U1,  U2;
+  FLA_Obj VL, VR,      V0,  V1,  V2;
   FLA_Obj AB1, Y, G, YBl, YBl1, YBl2, GBl, None1, None2, None3,
           S1, S1tl, S2, S2tl,
           SU, sv, SVT, SUtl, svl, SVTtl,
-          C1copy, D1copy,
+          U1copy, V1copy,
           A12copy, A01copy;
-  int     bRow, m_A, n_A, dtype_A, j;
+  FLA_Obj T, TA, TU;
+  int     dtype_A, m_A, n_A, m_TA, n_TA, bRow, j;
 #ifdef PROFILE
-  double  t1, t2, tt_gg, tt_by, 
+  double  t1, t2, tt_fqr, tt_fuu, tt_gg, tt_by, 
           tt_qrr_fact, tt_qrr_updt_a, tt_qrr_updt_v, 
           tt_qrl_fact, tt_qrl_updt_a, tt_qrl_updt_u, 
           tt_svd_fact, tt_svd_updt_a, tt_svd_updt_uv;
@@ -184,6 +182,8 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
   }
 
 #ifdef PROFILE
+  tt_fqr         = 0.0;
+  tt_fuu         = 0.0;
   tt_gg          = 0.0;
   tt_by          = 0.0;
   tt_qrr_fact    = 0.0;
@@ -198,9 +198,9 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 #endif
 
   // Some initializations.
+  dtype_A = FLA_Obj_datatype( A );
   m_A     = FLA_Obj_length( A );
   n_A     = FLA_Obj_width ( A );
-  dtype_A = FLA_Obj_datatype( A );
 
   // %%% Initialize U and V and copy A onto T.
   // U = eye(m);
@@ -213,9 +213,68 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
     MyFLA_Set_to_identity( V );
   }
 
+  //
+  // Compute an initial QR factorization if A is tall and skinny (m >> n).
+  //
+  if( m_A > n_A ) {
+    //
+    // Case: Tall-and-skinny matrices.
+    //
+    //// printf( "Tall-and-skinny case.\n" );
+
+    // Create T.
+    FLA_Obj_create( dtype_A, nb_alg, n_A, 0, 0, & T );
+
+#ifdef PROFILE
+    t1 = FLA_Clock();
+#endif
+    // Compute QR of A.
+    FLA_QR_UT( A, T );
+#ifdef PROFILE
+    t2 = FLA_Clock();
+    tt_fqr += ( t2 - t1 );
+#endif
+
+#ifdef PROFILE
+    t1 = FLA_Clock();
+#endif
+    // Form Q.
+    if( build_u == 1 ) {
+      FLA_QR_UT_form_Q( A, T, U );
+    }
+#ifdef PROFILE
+    t2 = FLA_Clock();
+    tt_fuu += ( t2 - t1 );
+#endif
+
+    // Remove T.
+    FLA_Obj_free( & T );
+
+    // Zero the strictly lower triangular part of A.
+    MyFLA_Zero_strict_lower_triangular( A );
+
+    // Truncate matrices A and U (extract top part of A and left part of U).
+    FLA_Part_2x1( A,    & TA,
+                        & None1,         n_A, FLA_TOP );
+    if( build_u == 1 ) {
+      FLA_Part_1x2( U,    & TU,  & None1,  n_A, FLA_LEFT );
+    }
+  } else {
+    //
+    // Case: Not tall-and-skinny matrices.
+    //
+    //// printf( "Not tall-and-skinny case.\n" );
+    TA = A;
+    TU = U;
+  }
+
+  // Some initializations.
+  m_TA    = FLA_Obj_length( TA );
+  n_TA    = FLA_Obj_width ( TA );
+
   // Create and initialize auxiliary objects.
-  FLA_Obj_create( dtype_A, n_A,    nb_alg + pp, 0, 0, & Y );
-  FLA_Obj_create( dtype_A, m_A,    nb_alg + pp, 0, 0, & G );
+  FLA_Obj_create( dtype_A, n_TA,   nb_alg + pp, 0, 0, & Y );
+  FLA_Obj_create( dtype_A, m_TA,   nb_alg + pp, 0, 0, & G );
   FLA_Obj_create( dtype_A, nb_alg, nb_alg,      0, 0, & S1 );
   FLA_Obj_create( dtype_A, nb_alg, nb_alg,      0, 0, & S2 );
   FLA_Obj_create( dtype_A, nb_alg, nb_alg,      0, 0, & SU );
@@ -223,27 +282,23 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
   FLA_Obj_create( dtype_A, nb_alg, nb_alg,      0, 0, & SVT );
 
   // Initial Partitioning.
-  FLA_Part_2x2( A,    & ATL, & ATR,
+  FLA_Part_2x2( TA,   & ATL, & ATR,
                       & ABL, & ABR,    0, 0, FLA_TL );
   FLA_Part_2x1( Y,    & YT,
                       & YB,            0, FLA_TOP );
   FLA_Part_2x1( G,    & GT,
                       & GB,            0, FLA_TOP );
-  FLA_Part_1x2( A,    & BL,  & BR,     0, FLA_LEFT );
+  FLA_Part_1x2( TA,   & BL,  & BR,     0, FLA_LEFT );
   if( build_u == 1 ) {
-    FLA_Part_2x2( U,    & UTL, & UTR,
-                        & UBL, & UBR,    0, 0, FLA_TL );
-    FLA_Part_1x2( U,    & CL,  & CR,     0, FLA_LEFT );
+    FLA_Part_1x2( TU,   & UL,  & UR,     0, FLA_LEFT );
   }
   if( build_v == 1 ) {
-    FLA_Part_2x2( V,    & VTL, & VTR,
-                        & VBL, & VBR,    0, 0, FLA_TL );
-    FLA_Part_1x2( V,    & DL,  & DR,     0, FLA_LEFT );
+    FLA_Part_1x2( V,    & VL,  & VR,     0, FLA_LEFT );
   }
 
   // Main Loop.
-  while( ( FLA_Obj_length( ATL ) < FLA_Obj_length( A ) )&&
-         ( FLA_Obj_width ( ATL ) < FLA_Obj_width ( A ) ) ) {
+  while( ( FLA_Obj_length( ATL ) < FLA_Obj_length( TA ) )&&
+         ( FLA_Obj_width ( ATL ) < FLA_Obj_width ( TA ) ) ) {
     bRow = min( FLA_Obj_min_dim( ABR ), nb_alg );
 
     // Iteration Initial Partitioning.
@@ -263,21 +318,11 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
     FLA_Repart_1x2_to_1x3( BL,  /**/ BR,        &B0, /**/ &B1, &B2,
                            bRow, FLA_RIGHT );
     if( build_u == 1 ) {
-      FLA_Repart_2x2_to_3x3( UTL, /**/ UTR,       &U00, /**/ &U01, &U02,
-                          /* ************* */   /* ******************** */
-                                                  &U10, /**/ &U11, &U12,
-                             UBL, /**/ UBR,       &U20, /**/ &U21, &U22,
-                             bRow, bRow, FLA_BR );
-      FLA_Repart_1x2_to_1x3( CL,  /**/ CR,        &C0, /**/ &C1, &C2,
+      FLA_Repart_1x2_to_1x3( UL,  /**/ UR,        &U0, /**/ &U1, &U2,
                              bRow, FLA_RIGHT );
     }
     if( build_v == 1 ) {
-      FLA_Repart_2x2_to_3x3( VTL, /**/ VTR,       &V00, /**/ &V01, &V02,
-                          /* ************* */   /* ******************** */
-                                                  &V10, /**/ &V11, &V12,
-                             VBL, /**/ VBR,       &V20, /**/ &V21, &V22,
-                             bRow, bRow, FLA_BR );
-      FLA_Repart_1x2_to_1x3( DL,  /**/ DR,        &D0, /**/ &D1, &D2,
+      FLA_Repart_1x2_to_1x3( VL,  /**/ VR,        &V0, /**/ &V1, &V2,
                              bRow, FLA_RIGHT );
     }
 
@@ -379,7 +424,7 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
       t1 = FLA_Clock();
 #endif
       if( build_v == 1 ) {
-        MyFLA_Apply_Q_UT_rnfc_blk( YBl1, YBl2, S1tl, D1, D2 );
+        MyFLA_Apply_Q_UT_rnfc_blk( YBl1, YBl2, S1tl, V1, V2 );
       }
 #ifdef PROFILE
       t2 = FLA_Clock();
@@ -426,7 +471,7 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
       t1 = FLA_Clock();
 #endif
       if( build_u == 1 ) {
-        MyFLA_Apply_Q_UT_rnfc_blk( A11, A21, S2tl, C1, C2 );
+        MyFLA_Apply_Q_UT_rnfc_blk( A11, A21, S2tl, U1, U2 );
       }
 #ifdef PROFILE
       t2 = FLA_Clock();
@@ -496,20 +541,20 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 #endif
     // Apply U of miniSVD to global U.
     if( build_u == 1 ) {
-      FLA_Obj_create_conf_to( FLA_NO_TRANSPOSE, C1, & C1copy );
-      FLA_Copy( C1, C1copy );
+      FLA_Obj_create_conf_to( FLA_NO_TRANSPOSE, U1, & U1copy );
+      FLA_Copy( U1, U1copy );
       FLA_Gemm( FLA_NO_TRANSPOSE, FLA_NO_TRANSPOSE,
-                FLA_ONE, C1copy, SUtl, FLA_ZERO, C1 );
-      FLA_Obj_free( & C1copy );
+                FLA_ONE, U1copy, SUtl, FLA_ZERO, U1 );
+      FLA_Obj_free( & U1copy );
     }
 
     // Apply V of miniSVD to global V.
     if( build_v == 1 ) {
-      FLA_Obj_create_conf_to( FLA_NO_TRANSPOSE, D1, & D1copy );
-      FLA_Copy( D1, D1copy );
+      FLA_Obj_create_conf_to( FLA_NO_TRANSPOSE, V1, & V1copy );
+      FLA_Copy( V1, V1copy );
       FLA_Gemm( FLA_NO_TRANSPOSE, FLA_TRANSPOSE,
-                FLA_ONE, D1copy, SVTtl, FLA_ZERO, D1 );
-      FLA_Obj_free( & D1copy );
+                FLA_ONE, V1copy, SVTtl, FLA_ZERO, V1 );
+      FLA_Obj_free( & V1copy );
     }
 #ifdef PROFILE
     t2 = FLA_Clock();
@@ -535,21 +580,11 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
     FLA_Cont_with_1x3_to_1x2( &BL,  /**/ &BR,        B0, B1, /**/ B2,
                               FLA_LEFT );
     if( build_u == 1 ) {
-      FLA_Cont_with_3x3_to_2x2( &UTL, /**/ &UTR,       U00, U01, /**/ U02,
-                                                       U10, U11, /**/ U12,
-                              /* ************** */  /* ****************** */
-                                &UBL, /**/ &UBR,       U20, U21, /**/ U22,
-                                FLA_TL );
-      FLA_Cont_with_1x3_to_1x2( &CL,  /**/ &CR,        C0, C1, /**/ C2,
+      FLA_Cont_with_1x3_to_1x2( &UL,  /**/ &UR,        U0, U1, /**/ U2,
                                 FLA_LEFT );
     }
     if( build_v == 1 ) {
-      FLA_Cont_with_3x3_to_2x2( &VTL, /**/ &VTR,       V00, V01, /**/ V02,
-                                                       V10, V11, /**/ V12,
-                              /* ************** */  /* ****************** */
-                                &VBL, /**/ &VBR,       V20, V21, /**/ V22,
-                                FLA_TL );
-      FLA_Cont_with_1x3_to_1x2( &DL,  /**/ &DR,        D0, D1, /**/ D2,
+      FLA_Cont_with_1x3_to_1x2( &VL,  /**/ &VR,        V0, V1, /**/ V2,
                                 FLA_LEFT );
     }
   }
@@ -577,24 +612,27 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
   FLA_Obj_free( & SVT );
 
 #ifdef PROFILE
-  printf( "%% tt_gen_g:       %le\n", tt_gg );
-  printf( "%% tt_build_y:     %le\n", tt_by );
-  printf( "%% tt_qrr:         %le\n", tt_qrr_fact + tt_qrr_updt_a + 
+  printf( "%% tt_first_qr:     %le\n", tt_fqr );
+  printf( "%% tt_first_updt_u: %le\n", tt_fuu );
+  printf( "%% tt_gen_g:        %le\n", tt_gg );
+  printf( "%% tt_build_y:      %le\n", tt_by );
+  printf( "%% tt_qrr:          %le\n", tt_qrr_fact + tt_qrr_updt_a + 
                                       tt_qrr_updt_v );
   printf( "%%     tt_qrr_fact:    %le\n", tt_qrr_fact );
   printf( "%%     tt_qrr_updt_a:  %le\n", tt_qrr_updt_a );
   printf( "%%     tt_qrr_updt_v:  %le\n", tt_qrr_updt_v );
-  printf( "%% tt_qrl:         %le\n", tt_qrl_fact + tt_qrl_updt_a + 
+  printf( "%% tt_qrl:          %le\n", tt_qrl_fact + tt_qrl_updt_a + 
                                       tt_qrl_updt_u );
   printf( "%%     tt_qrl_fact:    %le\n", tt_qrl_fact );
   printf( "%%     tt_qrl_updt_a:  %le\n", tt_qrl_updt_a );
   printf( "%%     tt_qrl_updt_u:  %le\n", tt_qrl_updt_u );
-  printf( "%% tt_svd:         %le\n", tt_svd_fact + tt_svd_updt_a + 
+  printf( "%% tt_svd:          %le\n", tt_svd_fact + tt_svd_updt_a + 
                                       tt_svd_updt_uv);
   printf( "%%     tt_svd_fact:    %le\n", tt_svd_fact );
   printf( "%%     tt_svd_updt_a:  %le\n", tt_svd_updt_a );
   printf( "%%     tt_svd_updt_uv: %le\n", tt_svd_updt_uv );
-  printf( "%% total_time:     %le\n",
+  printf( "%% total_time:      %le\n",
+          tt_fqr + tt_fuu +
           tt_gg + tt_by +
           tt_qrr_fact + tt_qrr_updt_a + tt_qrr_updt_v + 
           tt_qrl_fact + tt_qrl_updt_a + tt_qrl_updt_u + 
@@ -760,7 +798,7 @@ static FLA_Error MyFLA_Normal_random_matrix( FLA_Obj A ) {
       buff_A  = ( double * ) FLA_Obj_buffer_at_view( A );
       ldim_A  = FLA_Obj_col_stride( A );
 
-      // Main loop.
+      // Main loops.
       for ( j = 0; j < n_A; j++ ) {
         for ( i = 0; i < m_A; i++ ) {
           buff_A[ i + j * ldim_A ] = MyFLA_Normal_random_number( 0.0, 1.0 );
@@ -781,6 +819,8 @@ static FLA_Error MyFLA_Normal_random_matrix( FLA_Obj A ) {
 static double MyFLA_Normal_random_number( double mu, double sigma ) {
 //
 // It computes and returns a normal random number.
+// This function uses the Box-Mueller (transformation) method for converting 
+// uniform random numbers into normal random numbers.
 //
   static int     alternate = 0;
   static double  b1, b2;

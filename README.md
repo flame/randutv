@@ -64,12 +64,12 @@ The new code can be downloaded from https://github.com/flame/randutv/.
 
 The algorithm was originally implemented using the FLAME/C API with 
 a variation of the compact WY transform we call the UT transform. 
+
 However, an implementation that uses the original compact WY transform 
 is also supplied so that many routines from LAPACK can be employed in a 
 seamless fashion.
 
-This implementation as well as the original implementation based on the UT
-transform will eventually be included in the libflame library: 
+Both implementations will eventually be included in the libflame library: 
 https://github.com/flame/libflame/
 
 We will appreciate feedback from the community on the use of this code.
@@ -112,12 +112,12 @@ We offer two variants of the code:
 
 * LAPACK-compatible pure C code: 
   It uses compact WY transformations.
-  The sources are stored in the `lapack_compatible_sources` folder.
+  The sources are stored in the folder `lapack_compatible_sources`.
 
 * LAPACK-like libflame code: 
   It uses compact UT transformations.
   This code resembles the algorithm in the paper.
-  The sources are stored in the `libflame_sources` folder.
+  The sources are stored in the folder `libflame_sources`.
 
 ### Details of LAPACK-compatible pure C code: 
 
@@ -126,8 +126,8 @@ The new code contains the following main routine:
 ```
 int NoFLA_UTV_WY_blk_var2(
         int m_A, int n_A, double * buff_A, int ldim_A,
-        int build_u, int m_U, int n_U, double * buff_U, int ldim_U,
-        int build_v, int m_V, int n_V, double * buff_V, int ldim_V,
+        int build_u, double * buff_U, int ldim_U,
+        int build_v, double * buff_V, int ldim_V,
         int nb_alg, int pp, int n_iter ) {
 //
 // randUTV: It computes the UTV factorization of matrix A.
@@ -135,9 +135,9 @@ int NoFLA_UTV_WY_blk_var2(
 // Main features:
 //   * BLAS-3 based.
 //   * Compact WY transformations are used instead of UT transformations.
-//   * No use of libflame.
 //
 // Matrices A, U, and V must be stored in column-order.
+// If provided, matrices U,V must be square.
 //
 // Arguments:
 // ----------
@@ -146,13 +146,9 @@ int NoFLA_UTV_WY_blk_var2(
 // buff_A:   Address of data in matrix A. Matrix to be factorized.
 // ldim_A:   Leading dimension of matrix A.
 // build_u:  If build_u==1, matrix U is built.
-// m_U:      Number of rows of matrix U.
-// n_U:      Number of columns of matrix U.
 // buff_U:   Address of data in matrix U.
 // ldim_U:   Leading dimension of matrix U.
 // build_v:  If build_v==1, matrix V is built.
-// m_V:      Number of rows of matrix V.
-// n_V:      Number of columns of matrix V.
 // buff_V:   Address of data in matrix V.
 // ldim_V:   Leading dimension of matrix V.
 // nb_alg:   Block size. Usual values for nb_alg are 32, 64, etc.
@@ -162,7 +158,7 @@ int NoFLA_UTV_WY_blk_var2(
 ```
 
 This routine is stored in the file `NoFLA_UTV_WY_blk_var2.c`.
-The file `simple_test.c` contain a main program to test it.
+The file `simple_test.c` contains a main program to test it.
 
 ### Details of LAPACK-like libflame code: 
 
@@ -179,6 +175,9 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 //   * Use of Householder UT block transformations.
 //   * Use of libflame.
 //
+// Matrices A, U, and V must be stored in column-order.
+// If provided, matrices U,V must be square.
+//
 // Arguments:
 // ----------
 // A:       (input)  Matrix to be factorized.
@@ -194,6 +193,6 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 ```
 
 This routine is stored in the file `FLA_UTV_UT_blk_var1.c`.
-The file `simple_test.c` contain a main program to test it.
+The file `simple_test.c` contains a main program to test it.
 
 
