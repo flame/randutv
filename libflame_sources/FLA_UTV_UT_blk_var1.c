@@ -111,6 +111,9 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 //   * Use of Householder UT block transformations.
 //   * Use of libflame.
 //
+// Matrices A, U, and V must be stored in column-order.
+// If provided, matrices U,V must be square.
+//
 // Arguments:
 // ----------
 // A:       (input)  Matrix to be factorized.
