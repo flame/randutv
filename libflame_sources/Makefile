@@ -1,7 +1,7 @@
 
 # Defintions of variables.
 
-LIBFLAME_PATH = /home/gquintan/mylib/libflame-pc34-r11104-gc
+LIBFLAME_PATH = /usr/local/mylib/libflame-pc34-r11104-gc
 
 CC      = gcc
 CCFLAGS = -O -fopenmp -I$(LIBFLAME_PATH)/include-x86_64-r -msse3
@@ -17,16 +17,13 @@ simple_test.x : simple_test.o FLA_UTV_UT_blk_var1.o
             simple_test.o \
             FLA_UTV_UT_blk_var1.o \
             -L$(LIBFLAME_PATH)/lib -lflame-x86_64-r \
-            /home/gquintan/mylib/lapack/liblapack_340_p4b64_gf.a \
-            /home/gquintan/mylib/lapack/librefblas_340_p4b64_gf.a \
+            /usr/local/mylib/lapack/liblapack_340_p4b64_gf.a \
+            /usr/local/mylib/lapack/librefblas_340_p4b64_gf.a \
             -lgfortran \
             -lm
 
-simple_test.o : simple_test.c
-	$(CC) $(CCFLAGS) -c simple_test.c
-
-FLA_UTV_UT_blk_var1.o : FLA_UTV_UT_blk_var1.c
-	$(CC) $(CCFLAGS) -c FLA_UTV_UT_blk_var1.c
+%.o : %.c
+	$(CC) $(CCFLAGS) -c $< -o $@
 
 clean: 
 	rm -f a.out *.x *.o *~ core
