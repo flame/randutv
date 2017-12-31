@@ -112,7 +112,7 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 //   * Use of libflame.
 //
 // Matrices A, U, and V must be stored in column-order.
-// If provided, matrices U,V must be square.
+// If provided, matrices U,V must be square and with the right dimensions.
 //
 // Arguments:
 // ----------
