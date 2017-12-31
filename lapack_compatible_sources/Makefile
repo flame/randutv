@@ -8,7 +8,7 @@ LDFLAGS = -O -fopenmp
 
 # Defintions of rules.
 
-simple_test.x : simple_test.o
+simple_test.x : simple_test.o NoFLA_UTV_WY_blk_var2.o
 	$(LD) $(LDFLAGS) \
             -o simple_test.x \
             simple_test.o \
