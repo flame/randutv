@@ -90,6 +90,9 @@ static int NoFLA_Compute_svd(
                int m_V, int n_V, double * buff_V, int ldim_V,
                int nb_alg );
 
+static int NoFLA_Print_matrix( char * matrix_name, int m_A, int n_A,
+               double * buff_A, int ldim_A );
+
 static int NoFLA_Normal_random_matrix( int m_A, int n_A,
                double * buff_A, int ldim_A );
 
@@ -127,8 +130,8 @@ static int NoFLA_QRP_pivot_G( int j_max_col,
 // ============================================================================
 int NoFLA_UTV_WY_blk_var2(
         int m_A, int n_A, double * buff_A, int ldim_A,
-        int build_u, int m_U, int n_U, double * buff_U, int ldim_U,
-        int build_v, int m_V, int n_V, double * buff_V, int ldim_V,
+        int build_u, double * buff_U, int ldim_U,
+        int build_v, double * buff_V, int ldim_V,
         int nb_alg, int pp, int n_iter ) {
 //
 // randUTV: It computes the UTV factorization of matrix A.
@@ -136,9 +139,9 @@ int NoFLA_UTV_WY_blk_var2(
 // Main features:
 //   * BLAS-3 based.
 //   * Compact WY transformations are used instead of UT transformations.
-//   * No use of libflame.
 //
 // Matrices A, U, and V must be stored in column-order.
+// If provided, matrices U,V must be square.
 //
 // Arguments:
 // ----------
@@ -147,13 +150,9 @@ int NoFLA_UTV_WY_blk_var2(
 // buff_A:   Address of data in matrix A. Matrix to be factorized.
 // ldim_A:   Leading dimension of matrix A.
 // build_u:  If build_u==1, matrix U is built.
-// m_U:      Number of rows of matrix U.
-// n_U:      Number of columns of matrix U.
 // buff_U:   Address of data in matrix U.
 // ldim_U:   Leading dimension of matrix U.
 // build_v:  If build_v==1, matrix V is built.
-// m_V:      Number of rows of matrix V.
-// n_V:      Number of columns of matrix V.
 // buff_V:   Address of data in matrix V.
 // ldim_V:   Leading dimension of matrix V.
 // nb_alg:   Block size. Usual values for nb_alg are 32, 64, etc.
@@ -176,12 +175,16 @@ int NoFLA_UTV_WY_blk_var2(
           * buff_A01, * buff_A12,
           * buff_GBl, * buff_YBl, * buff_S1tl, * buff_S2tl,
           * buff_BR, * buff_C1, * buff_D1, * buff_CR, * buff_DR;
-  int     i, j, bRow, mn_A;
+  int     m_U, n_U, m_V, n_V;
+  int     i, j, bRow, mn_A, m_TA;
   int     ldim_Y, ldim_G, ldim_S1, ldim_S2, ldim_SU, ldim_SVT;
-  int     m_YBl, n_YBl, m_GBl, n_GBl, m_CR, n_CR, m_AB1, n_AB1, m_AB2, n_AB2,
-          m_WR, n_WR, m_XR, n_XR;
+  int     m_YBl, n_YBl, m_GBl, n_GBl, m_BR, n_BR, m_AB1, n_AB1, m_AB2, n_AB2,
+          m_CR, n_CR, m_DR, n_DR;
+  double  * buff_tau, * buff_ws_geqrf, * buff_ws_ormqr;
+  int     len_ws_geqrf, len_ws_ormqr, info;
+
 #ifdef PROFILE
-  double  t1, t2, tt_gg, tt_by,
+  double  t1, t2, tt_fqr, tt_fuu, tt_gg, tt_by,
           tt_qrr_fact, tt_qrr_updt_a, tt_qrr_updt_v,
           tt_qrl_fact, tt_qrl_updt_a, tt_qrl_updt_u,
           tt_svd_fact, tt_svd_updt_a, tt_svd_updt_uv;
@@ -193,25 +196,15 @@ int NoFLA_UTV_WY_blk_var2(
   // Set seed for random generator.
   srand( 12 );
 
-  // Check matrix dimensions.
-  if( m_U != n_U ) {
-    fprintf( stderr, "NoFLA_UTV_WY_blk_var2: Matrix U should be square.\n" ); 
-    exit( -1 );
-  }
-  if( m_V != n_V ) {
-    fprintf( stderr, "NoFLA_UTV_WY_blk_var2: Matrix V should be square.\n" ); 
-    exit( -1 );
-  }
-  if( m_U != m_A ) {
-    fprintf( stderr, "NoFLA_UTV_WY_blk_var2: Dims. of U and A do not match.\n");
-    exit( -1 );
-  }
-  if( n_A != m_V ) {
-    fprintf( stderr, "NoFLA_UTV_WY_blk_var2: Dims. of A and V do not match.\n");
-    exit( -1 );
-  }
+  // Some initializations.
+  m_U = m_A;
+  n_U = m_A;
+  m_V = n_A;
+  n_V = n_A;
 
 #ifdef PROFILE
+  tt_fqr         = 0.0;
+  tt_fuu         = 0.0;
   tt_gg          = 0.0;
   tt_by          = 0.0;
   tt_qrr_fact    = 0.0;
@@ -224,26 +217,6 @@ int NoFLA_UTV_WY_blk_var2(
   tt_svd_updt_a  = 0.0;
   tt_svd_updt_uv = 0.0;
 #endif
-
-  // Create and initialize auxiliary objects.
-  buff_G   = ( double * ) malloc( m_A * ( nb_alg + pp ) * sizeof( double ) );
-  buff_Y   = ( double * ) malloc( n_A * ( nb_alg + pp ) * sizeof( double ) );
-  buff_S1  = ( double * ) malloc( nb_alg * nb_alg * sizeof( double ) );
-  buff_S2  = ( double * ) malloc( nb_alg * nb_alg * sizeof( double ) );
-  buff_SU  = ( double * ) malloc( nb_alg * nb_alg * sizeof( double ) );
-  buff_sv  = ( double * ) malloc( nb_alg * sizeof( double ) );
-  buff_SVT = ( double * ) malloc( nb_alg * nb_alg * sizeof( double ) );
-
-  // Some initializations.
-  ldim_G     = m_A;
-  ldim_Y     = n_A;
-  ldim_S1    = nb_alg;
-  ldim_S2    = nb_alg;
-  ldim_SU    = nb_alg;
-  ldim_SVT   = nb_alg;
-  buff_SUtl  = & buff_SU [ 0 + 0 * ldim_SU ];
-  buff_svl   = & buff_sv[ 0 ];
-  buff_SVTtl = & buff_SVT[ 0 + 0 * ldim_SVT ];
 
   // %%% Initialize U and V and copy A onto T.
   // U = eye(m);
@@ -258,26 +231,149 @@ int NoFLA_UTV_WY_blk_var2(
     NoFLA_Set_to_identity( m_V, n_V, buff_V, ldim_V );
   }
 
+  //
+  // Compute an initial QR factorization if A is tall and skinny (m >> n).
+  //
+  if( m_A > n_A ) {
+    //
+    // Case: Tall-and-skinny matrices.
+    //
+    //// printf( "Tall-and-skinny case.\n" );
+
+    // Create tau vector.
+    buff_tau = ( double * ) malloc( n_A * sizeof( double ) );
+
+#ifdef PROFILE
+    t1 = omp_get_wtime();
+#endif
+    // Create workspace for xGEQRF.
+    len_ws_geqrf  = n_A * nb_alg;
+    buff_ws_geqrf = ( double * ) malloc( len_ws_geqrf * sizeof( double ) );
+
+    //// // Compute QR of A.
+    //// FLA_QR_UT( A, T );
+
+#ifdef FORCE_NETLIB_DRIVERS_IN_UTV
+    dgeqrf_f_( & m_A, & n_A, buff_A, & ldim_A, buff_tau, 
+               buff_ws_geqrf, & len_ws_geqrf, & info );
+#else
+    dgeqrf_( & m_A, & n_A, buff_A, & ldim_A, buff_tau, 
+             buff_ws_geqrf, & len_ws_geqrf, & info );
+#endif
+    if( info != 0 ) {
+      fprintf( stderr, 
+               "NoFLA_UTV_WY_blk_var2: info returned by dgeqrf_f: %d\n",
+               info );
+    }
+
+    // Remove workspace for xGEQRF.
+    free( buff_ws_geqrf );
+
+#ifdef PROFILE
+    t2 = omp_get_wtime();
+    tt_fqr += ( t2 - t1 );
+#endif
+
+#ifdef PROFILE
+    t1 = omp_get_wtime();
+#endif
+    //// // Form Q.
+    //// if( build_u == 1 ) {
+    ////   FLA_QR_UT_form_Q( A, T, U );
+    //// }
+
+    if( build_u == 1 ) {
+      // xORGQR is more appropriate, but xORMQR seems to be a bit faster.
+      // Create workspace for xORMQR.
+      len_ws_ormqr  = n_U * nb_alg;
+      buff_ws_ormqr = ( double * ) malloc( len_ws_ormqr * sizeof( double ) );
+
+      //// char lower = 'L';
+      //// dlacpy_( & lower, & m_A, & n_A, buff_A, & ldim_A,
+      ////                                 buff_U, & ldim_U );
+      //// dorgqr_f_( & m_U, & n_U, & n_A, buff_U, & ldim_U, buff_tau,
+      ////            buff_ws_orgqr, & len_ws_orgqr, & info );
+
+#ifdef FORCE_NETLIB_DRIVERS_IN_UTV
+      dormqr_f_( "Right", "No transpose", & m_U, & n_U, & n_A, 
+                 buff_A, & ldim_A, buff_tau, buff_U, & ldim_U,
+                 buff_ws_ormqr, & len_ws_ormqr, & info );
+#else
+      dormqr_( "Right", "No transpose", & m_U, & n_U, & n_A, 
+               buff_A, & ldim_A, buff_tau, buff_U, & ldim_U,
+               buff_ws_ormqr, & len_ws_ormqr, & info );
+#endif
+      if( info != 0 ) {
+        fprintf( stderr, 
+                 "NoFLA_UTV_WY_blk_var2: info returned by dormqr_f: %d\n",
+                 info );
+      }
+
+      // Remove workspace for xORMQR.
+      free( buff_ws_ormqr );
+    }
+#ifdef PROFILE
+    t2 = omp_get_wtime();
+    tt_fuu += ( t2 - t1 );
+#endif
+
+    // Remove tau vector.
+    free( buff_tau );
+
+    // Zero the strictly lower triangular part of A.
+    NoFLA_Zero_strict_lower_triangular( m_A, n_A, buff_A, ldim_A );
+
+    // Truncate matrix A (extract top part of A).
+    m_TA = n_A;
+  } else {
+    //
+    // Case: Not tall-and-skinny matrices.
+    //
+    //// printf( "Not tall-and-skinny case.\n" );
+    m_TA = m_A;
+  }
+
+  // Create and initialize auxiliary objects.
+  buff_G   = ( double * ) malloc( m_TA * ( nb_alg + pp ) * sizeof( double ) );
+  buff_Y   = ( double * ) malloc( n_A * ( nb_alg + pp ) * sizeof( double ) );
+  buff_S1  = ( double * ) malloc( nb_alg * nb_alg * sizeof( double ) );
+  buff_S2  = ( double * ) malloc( nb_alg * nb_alg * sizeof( double ) );
+  buff_SU  = ( double * ) malloc( nb_alg * nb_alg * sizeof( double ) );
+  buff_sv  = ( double * ) malloc( nb_alg * sizeof( double ) );
+  buff_SVT = ( double * ) malloc( nb_alg * nb_alg * sizeof( double ) );
+
+  // Some initializations.
+  ldim_G     = m_TA;
+  ldim_Y     = n_A;
+  ldim_S1    = nb_alg;
+  ldim_S2    = nb_alg;
+  ldim_SU    = nb_alg;
+  ldim_SVT   = nb_alg;
+  buff_SUtl  = & buff_SU[ 0 + 0 * ldim_SU ];
+  buff_svl   = & buff_sv[ 0 ];
+  buff_SVTtl = & buff_SVT[ 0 + 0 * ldim_SVT ];
+
   // Main Loop.
-  mn_A = min( m_A, n_A );
+  mn_A = min( m_TA, n_A );
   for( i = 0; i < mn_A; i += nb_alg ) {
     bRow = min( nb_alg, mn_A - i );
 
     // Some initializations for every iteration.
     m_YBl = n_A - i;
     n_YBl = bRow + pp;
-    m_GBl = m_A - i;
+    m_GBl = m_TA - i;
     n_GBl = bRow + pp;
-    m_CR  = m_A;
-    n_CR  = n_A - i;
-    m_AB1 = m_A - i;
+    m_BR  = m_TA;
+    n_BR  = n_A - i;
+    m_AB1 = m_TA - i;
     n_AB1 = bRow;
-    m_AB2 = m_A - i;
+    m_AB2 = m_TA - i;
     n_AB2 = n_A - i - bRow;
-    m_WR  = m_U;
-    n_WR  = n_U - i;
-    m_XR  = m_V;
-    n_XR  = n_V - i;
+    m_CR  = m_U;
+    //// n_CR  = n_U - i;
+    n_CR  = n_A - i;
+    m_DR  = m_V;
+    n_DR  = n_V - i;
 
     buff_A11  = & buff_A[ i + i * ldim_A ];
     buff_ABR  = & buff_A[ i + i * ldim_A ];
@@ -400,7 +496,7 @@ int NoFLA_UTV_WY_blk_var2(
       NoFLA_Apply_Q_WY_rnfc_blk_var2(
           m_YBl, bRow, buff_YBl,  ldim_Y,
           bRow,  bRow, buff_S1tl, ldim_S1,
-          m_CR,  n_CR, buff_BR,   ldim_A );
+          m_BR,  n_BR, buff_BR,   ldim_A );
 
 #ifdef PROFILE
       t2 = omp_get_wtime();
@@ -416,7 +512,7 @@ int NoFLA_UTV_WY_blk_var2(
         NoFLA_Apply_Q_WY_rnfc_blk_var2(
             m_YBl, bRow, buff_YBl,  ldim_Y,
             bRow,  bRow, buff_S1tl, ldim_S1,
-            m_XR,  n_XR, buff_DR,   ldim_V );
+            m_DR,  n_DR, buff_DR,   ldim_V );
       }
 #ifdef PROFILE
       t2 = omp_get_wtime();
@@ -426,7 +522,7 @@ int NoFLA_UTV_WY_blk_var2(
 
     // Perform the following processing only if there are more rows below 
     // the diagonal block.
-    if( ( m_A - i - bRow ) > 0 ) {
+    if( ( m_TA - i - bRow ) > 0 ) {
 
       //
       // Update A from the left side. Update U if asked.
@@ -474,7 +570,7 @@ int NoFLA_UTV_WY_blk_var2(
         NoFLA_Apply_Q_WY_rnfc_blk_var2(
             m_AB1, n_AB1, buff_AB1,  ldim_A,
             bRow,  bRow,  buff_S2tl, ldim_S2,
-            m_WR,  n_WR,  buff_CR,   ldim_U );
+            m_CR,  n_CR,  buff_CR,   ldim_U );
       }
 #ifdef PROFILE
       t2 = omp_get_wtime();
@@ -612,24 +708,27 @@ int NoFLA_UTV_WY_blk_var2(
   free( buff_SVT );
 
 #ifdef PROFILE
-  printf( "%% tt_gen_g:       %le\n", tt_gg );
-  printf( "%% tt_build_y:     %le\n", tt_by );
-  printf( "%% tt_qrr:         %le\n", tt_qrr_fact + tt_qrr_updt_a +
+  printf( "%% tt_first_qr:     %le\n", tt_fqr );
+  printf( "%% tt_first_updt_u: %le\n", tt_fuu );
+  printf( "%% tt_gen_g:        %le\n", tt_gg );
+  printf( "%% tt_build_y:      %le\n", tt_by );
+  printf( "%% tt_qrr:          %le\n", tt_qrr_fact + tt_qrr_updt_a +
                                       tt_qrr_updt_v );
   printf( "%%     tt_qrr_fact:    %le\n", tt_qrr_fact );
   printf( "%%     tt_qrr_updt_a:  %le\n", tt_qrr_updt_a );
   printf( "%%     tt_qrr_updt_v:  %le\n", tt_qrr_updt_v );
-  printf( "%% tt_qrl:         %le\n", tt_qrl_fact + tt_qrl_updt_a +
+  printf( "%% tt_qrl:          %le\n", tt_qrl_fact + tt_qrl_updt_a +
                                       tt_qrl_updt_u );
   printf( "%%     tt_qrl_fact:    %le\n", tt_qrl_fact );
   printf( "%%     tt_qrl_updt_a:  %le\n", tt_qrl_updt_a );
   printf( "%%     tt_qrl_updt_u:  %le\n", tt_qrl_updt_u );
-  printf( "%% tt_svd:         %le\n", tt_svd_fact + tt_svd_updt_a +
+  printf( "%% tt_svd:          %le\n", tt_svd_fact + tt_svd_updt_a +
                                       tt_svd_updt_uv);
   printf( "%%     tt_svd_fact:    %le\n", tt_svd_fact );
   printf( "%%     tt_svd_updt_a:  %le\n", tt_svd_updt_a );
   printf( "%%     tt_svd_updt_uv: %le\n", tt_svd_updt_uv );
-  printf( "%% total_time:     %le\n",
+  printf( "%% total_time:      %le\n",
+          tt_fqr + tt_fuu +
           tt_gg + tt_by +
           tt_qrr_fact + tt_qrr_updt_a + tt_qrr_updt_v +
           tt_qrl_fact + tt_qrl_updt_a + tt_qrl_updt_u +
@@ -820,6 +919,27 @@ static int NoFLA_Compute_svd(
 }
 
 // ============================================================================
+static int NoFLA_Print_matrix( char * matrix_name, int m_A, int n_A,
+               double * buff_A, int ldim_A ) {
+//
+// It generates a random matrix with normal distribution.
+//
+  int  i, j;
+
+  // Main loops.
+  printf( "%s = [ \n", matrix_name );
+  for ( i = 0; i < m_A; i++ ) {
+    for ( j = 0; j < n_A; j++ ) {
+      printf( "%le ", buff_A[ i + j * ldim_A ] );
+    }
+    printf( "\n" );
+  }
+  printf( "]\n" );
+
+  return 0;
+}
+
+// ============================================================================
 static int NoFLA_Normal_random_matrix( int m_A, int n_A,
                double * buff_A, int ldim_A ) {
 //
@@ -827,7 +947,7 @@ static int NoFLA_Normal_random_matrix( int m_A, int n_A,
 //
   int  i, j;
 
-  // Main loop.
+  // Main loops.
   for ( j = 0; j < n_A; j++ ) {
     for ( i = 0; i < m_A; i++ ) {
       buff_A[ i + j * ldim_A ] = NoFLA_Normal_random_number( 0.0, 1.0 );
@@ -841,6 +961,8 @@ static int NoFLA_Normal_random_matrix( int m_A, int n_A,
 static double NoFLA_Normal_random_number( double mu, double sigma ) {
 //
 // It computes and returns a normal random number.
+// This function uses the Box-Mueller (transformation) method for converting 
+// uniform random numbers into normal random numbers.
 //
   static int     alternate = 0;
   static double  b1, b2;
