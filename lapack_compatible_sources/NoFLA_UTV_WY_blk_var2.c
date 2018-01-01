@@ -130,8 +130,8 @@ static int NoFLA_QRP_pivot_G( int j_max_col,
 // ============================================================================
 int NoFLA_UTV_WY_blk_var2(
         int m_A, int n_A, double * buff_A, int ldim_A,
-        int build_u, double * buff_U, int ldim_U,
-        int build_v, double * buff_V, int ldim_V,
+        int build_u, int m_U, int n_U, double * buff_U, int ldim_U,
+        int build_v, int m_V, int n_V, double * buff_V, int ldim_V,
         int nb_alg, int pp, int n_iter ) {
 //
 // randUTV: It computes the UTV factorization of matrix A.
@@ -139,6 +139,7 @@ int NoFLA_UTV_WY_blk_var2(
 // Main features:
 //   * BLAS-3 based.
 //   * Compact WY transformations are used instead of UT transformations.
+//   * No use of libflame.
 //
 // Matrices A, U, and V must be stored in column-order.
 // If provided, matrices U,V must be square and with the right dimensions.
@@ -150,9 +151,13 @@ int NoFLA_UTV_WY_blk_var2(
 // buff_A:   Address of data in matrix A. Matrix to be factorized.
 // ldim_A:   Leading dimension of matrix A.
 // build_u:  If build_u==1, matrix U is built.
+// m_U:      Number of rows of matrix U.
+// n_U:      Number of columns of matrix U.
 // buff_U:   Address of data in matrix U.
 // ldim_U:   Leading dimension of matrix U.
 // build_v:  If build_v==1, matrix V is built.
+// m_V:      Number of rows of matrix V.
+// n_V:      Number of columns of matrix V.
 // buff_V:   Address of data in matrix V.
 // ldim_V:   Leading dimension of matrix V.
 // nb_alg:   Block size. Usual values for nb_alg are 32, 64, etc.
@@ -175,7 +180,6 @@ int NoFLA_UTV_WY_blk_var2(
           * buff_A01, * buff_A12,
           * buff_GBl, * buff_YBl, * buff_S1tl, * buff_S2tl,
           * buff_BR, * buff_C1, * buff_D1, * buff_CR, * buff_DR;
-  int     m_U, n_U, m_V, n_V;
   int     i, j, bRow, mn_A, m_TA;
   int     ldim_Y, ldim_G, ldim_S1, ldim_S2, ldim_SU, ldim_SVT;
   int     m_YBl, n_YBl, m_GBl, n_GBl, m_BR, n_BR, m_AB1, n_AB1, m_AB2, n_AB2,
@@ -196,13 +200,26 @@ int NoFLA_UTV_WY_blk_var2(
   // Set seed for random generator.
   srand( 12 );
 
-  // Some initializations.
-  m_U = m_A;
-  n_U = m_A;
-  m_V = n_A;
-  n_V = n_A;
+  // Check matrix dimensions.
+  if( m_U != n_U ) {
+    fprintf( stderr, "NoFLA_UTV_WY_blk_var2: Matrix U should be square.\n" ); 
+    exit( -1 );
+  }
+  if( m_V != n_V ) {
+    fprintf( stderr, "NoFLA_UTV_WY_blk_var2: Matrix V should be square.\n" ); 
+    exit( -1 );
+  }
+  if( m_U != m_A ) {
+    fprintf( stderr, "NoFLA_UTV_WY_blk_var2: Dims. of U and A do not match.\n");
+    exit( -1 );
+  }
+  if( n_A != m_V ) {
+    fprintf( stderr, "NoFLA_UTV_WY_blk_var2: Dims. of A and V do not match.\n");
+    exit( -1 );
+  }
 
 #ifdef PROFILE
+  // Some initializations.
   tt_fqr         = 0.0;
   tt_fuu         = 0.0;
   tt_gg          = 0.0;
