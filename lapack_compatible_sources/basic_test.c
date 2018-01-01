@@ -44,11 +44,11 @@ int main( int argc, char *argv[] ) {
   double  resid;
 
   // Some initializations.
-  m_A    =  8;
-  n_A    =  8;
+  m_A     =  8;
+  n_A     =  8;
   // We use a small block size to factorize small input matrices, but
   // larger blocksizes such as 64 should be used for larger matrices.
-  nb_alg = 3;
+  nb_alg  = 3;
 
   // Create matrices A, Acopy, U, and V.
   buff_A     = ( double * ) malloc( m_A * n_A * sizeof( double ) );
