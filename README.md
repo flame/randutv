@@ -126,8 +126,8 @@ The new code contains the following main routine:
 ```
 int NoFLA_UTV_WY_blk_var2(
         int m_A, int n_A, double * buff_A, int ldim_A,
-        int build_u, double * buff_U, int ldim_U,
-        int build_v, double * buff_V, int ldim_V,
+        int build_u, int m_U, int n_U, double * buff_U, int ldim_U,
+        int build_v, int m_V, int n_V, double * buff_V, int ldim_V,
         int nb_alg, int pp, int n_iter ) {
 //
 // randUTV: It computes the UTV factorization of matrix A.
@@ -135,6 +135,7 @@ int NoFLA_UTV_WY_blk_var2(
 // Main features:
 //   * BLAS-3 based.
 //   * Compact WY transformations are used instead of UT transformations.
+//   * No use of libflame.
 //
 // Matrices A, U, and V must be stored in column-order.
 // If provided, matrices U,V must be square and with the right dimensions.
@@ -146,9 +147,13 @@ int NoFLA_UTV_WY_blk_var2(
 // buff_A:   Address of data in matrix A. Matrix to be factorized.
 // ldim_A:   Leading dimension of matrix A.
 // build_u:  If build_u==1, matrix U is built.
+// m_U:      Number of rows of matrix U.
+// n_U:      Number of columns of matrix U.
 // buff_U:   Address of data in matrix U.
 // ldim_U:   Leading dimension of matrix U.
 // build_v:  If build_v==1, matrix V is built.
+// m_V:      Number of rows of matrix V.
+// n_V:      Number of columns of matrix V.
 // buff_V:   Address of data in matrix V.
 // ldim_V:   Leading dimension of matrix V.
 // nb_alg:   Block size. Usual values for nb_alg are 32, 64, etc.
