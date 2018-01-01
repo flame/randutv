@@ -182,6 +182,7 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
   }
 
 #ifdef PROFILE
+  // Some initializations.
   tt_fqr         = 0.0;
   tt_fuu         = 0.0;
   tt_gg          = 0.0;
