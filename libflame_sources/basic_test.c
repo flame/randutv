@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "FLAME.h"
+#include "FLA_UTV_UT_blk_var1.h"
 
 #define PRINT_DATA
 
@@ -23,18 +24,18 @@ static int compute_svd( FLA_Obj A, FLA_Obj sv );
 
 // ============================================================================
 int main( int argc, char *argv[] ) {
-  int      m_A, n_A, nb;
+  int      m_A, n_A, nb_alg;
   FLA_Obj  A, Acopy, U, V, resid;
 
   // Initialize FLAME.
   FLA_Init();
 
   // Some initializations.
-  m_A = 8;
-  n_A = 8;
+  m_A     =  8;
+  n_A     =  8;
   // We use a small block size to factorize small input matrices, but
   // larger blocksizes such as 64 should be used for larger matrices.
-  nb  = 3;
+  nb_alg  = 3;
 
   // Create FLAME objects.
   FLA_Obj_create( FLA_DOUBLE, m_A, n_A, 0, 0, & A );
@@ -55,7 +56,7 @@ int main( int argc, char *argv[] ) {
 
   // Factorize matrix.
   printf( "%% Just before computing factorization.\n" );
-  FLA_UTV_UT_blk_var1( A, 1, U, 1, V, nb, 10, 2 );
+  FLA_UTV_UT_blk_var1( A, 1, U, 1, V, nb_alg, 10, 2 );
   printf( "%% Just after computing factorization.\n" );
 
   // Print results.

@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "NoFLA_UTV_WY_blk_var2.h"
 
 #define max( a, b ) ( (a) > (b) ? (a) : (b) )
 #define min( a, b ) ( (a) < (b) ? (a) : (b) )
@@ -43,11 +44,11 @@ int main( int argc, char *argv[] ) {
   double  resid;
 
   // Some initializations.
-  m_A      = 8;
-  n_A      = 8;
+  m_A    =  8;
+  n_A    =  8;
   // We use a small block size to factorize small input matrices, but
   // larger blocksizes such as 64 should be used for larger matrices.
-  nb_alg   = 3;
+  nb_alg = 3;
 
   // Create matrices A, Acopy, U, and V.
   buff_A     = ( double * ) malloc( m_A * n_A * sizeof( double ) );
@@ -74,8 +75,8 @@ int main( int argc, char *argv[] ) {
   // Factorize matrix.
   printf( "%% Just before computing factorization.\n" );
   NoFLA_UTV_WY_blk_var2( m_A, n_A, buff_A, ldim_A, 
-      1, buff_U, ldim_U, 
-      1, buff_V, ldim_V, 
+      1, m_A, m_A, buff_U, ldim_U, 
+      1, n_A, n_A, buff_V, ldim_V, 
       nb_alg, 10, 2 );
   printf( "%% Just after computing factorization.\n" );
 
