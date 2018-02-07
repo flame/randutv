@@ -966,9 +966,9 @@ static FLA_Error MyFLA_Apply_Q_UT_lhfc_blk( FLA_Obj U11, FLA_Obj U21,
 static FLA_Error MyFLA_Compute_svd( FLA_Obj A, FLA_Obj U, FLA_Obj sv, 
                      FLA_Obj V, int nb_alg ) {
 // Compute:  U, vs, and V of svd of A.
-  FLA_Obj  Workspace;
-  double   * buff_A, * buff_U, * buff_sv, * buff_V, * buff_Workspace, dwork;
-  int      info, m_A, n_A, ldim_A, ldim_U, ldim_V, lwork;
+  FLA_Obj  Iworkspace, Rworkspace;
+  double   * buff_A, * buff_U, * buff_sv, * buff_V, * buff_Rworkspace, dwork;
+  int      * buff_Iworkspace, info, m_A, n_A, ldim_A, ldim_U, ldim_V, lwork;
   char     all = 'A';
 
   // Some initializations.
@@ -982,34 +982,48 @@ static FLA_Error MyFLA_Compute_svd( FLA_Obj A, FLA_Obj U, FLA_Obj sv,
   buff_V   = ( double * ) FLA_Obj_buffer_at_view( V );
   ldim_V   = FLA_Obj_col_stride( V );
 
-  // Compute optimal workspace length.
+  // Create integer workspace.
+  FLA_Obj_create( FLA_INT, 8 * min( m_A, n_A ), 1, 0, 0, & Iworkspace );
+  buff_Iworkspace = ( int * ) FLA_Obj_buffer_at_view( Iworkspace );
+
+  // Compute optimal real workspace length.
   lwork = -1;
-  dgesvd_( & all, & all, & m_A, & n_A, 
+  //// dgesvd_( & all, & all, & m_A, & n_A, 
+  ////          buff_A, & ldim_A, buff_sv, 
+  ////          buff_U, & ldim_U, buff_V, & ldim_V,
+  ////          & dwork, & lwork, & info );
+  dgesdd_( & all, & m_A, & n_A, 
            buff_A, & ldim_A, buff_sv, 
            buff_U, & ldim_U, buff_V, & ldim_V,
-           & dwork, & lwork, & info );
+           & dwork, & lwork, buff_Iworkspace, & info );
   if( info != 0 ) {
-    fprintf( stderr, " *** Info after dgesvd_: %d \n", info );
+    fprintf( stderr, " *** Info after dgesdd_: %d \n", info );
   }
   lwork = ( int ) dwork;
-
-  // Create object Workspace.
-  FLA_Obj_create( FLA_Obj_datatype( A ), lwork, 1, 0, 0, & Workspace );
-  buff_Workspace = ( double * ) FLA_Obj_buffer_at_view( Workspace );
   //// printf( "  Optimal lwork: %d\n", lwork );
 
-  // Call to SUBROUTINE DGESVD( JOBU, JOBVT, M, N, A, LDA, S, U, LDU, VT, LDVT,
-  //                            WORK, LWORK, INFO )
-  dgesvd_( & all, & all, & m_A, & n_A, 
+  // Create real workspace.
+  FLA_Obj_create( FLA_Obj_datatype( A ), lwork, 1, 0, 0, & Rworkspace );
+  buff_Rworkspace = ( double * ) FLA_Obj_buffer_at_view( Rworkspace );
+
+  // Compute singular values and vectors.
+  //// dgesvd_( & all, & all, & m_A, & n_A, 
+  ////          buff_A, & ldim_A, buff_sv, 
+  ////          buff_U, & ldim_U, buff_V, & ldim_V,
+  ////          buff_Rworkspace, & lwork, & info );
+  dgesdd_( & all, & m_A, & n_A, 
            buff_A, & ldim_A, buff_sv, 
            buff_U, & ldim_U, buff_V, & ldim_V,
-           buff_Workspace, & lwork, & info );
+           buff_Rworkspace, & lwork, buff_Iworkspace, & info );
   if( info != 0 ) {
-    fprintf( stderr, " *** Info after dgesvd_: %d \n", info );
+    fprintf( stderr, " *** Info after dgesdd_: %d \n", info );
   }
 
-  // Remove object Workspace.
-  FLA_Obj_free( & Workspace );
+  // Remove real workspace.
+  FLA_Obj_free( & Rworkspace );
+
+  // Remove integer workspace.
+  FLA_Obj_free( & Iworkspace );
 
   return FLA_SUCCESS;
 }
