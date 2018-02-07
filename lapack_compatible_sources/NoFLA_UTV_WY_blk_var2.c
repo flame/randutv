@@ -387,8 +387,7 @@ int NoFLA_UTV_WY_blk_var2(
     m_AB2 = m_TA - i;
     n_AB2 = n_A - i - bRow;
     m_CR  = m_U;
-    //// n_CR  = n_U - i;
-    n_CR  = n_A - i;
+    n_CR  = min( n_A, n_U ) - i;
     m_DR  = m_V;
     n_DR  = n_V - i;
 
@@ -899,38 +898,53 @@ static int NoFLA_Compute_svd(
                int nb_alg ) {
 // Compute:  U, and V of svd of A.
   char    all = 'A';
-  double  * buff_Workspace, dwork;
-  int     info, lwork;
+  double  * buff_Rworkspace, dwork;
+  int     * buff_Iworkspace, info, lwork;
 
-  // Compute optimal workspace length. 
+  // Create integer workspace.
+  //// FLA_Obj_create( FLA_INT, 8 * min( m_A, n_A ), 1, 0, 0, & Iworkspace );
+  buff_Iworkspace = ( int * ) malloc( 8 * min( m_A, n_A ) * sizeof( double ) );
+
+  // Compute optimal real workspace length. 
   lwork = -1;
-  dgesvd_( & all, & all, & m_A, & n_A,
+  //// dgesvd_( & all, & all, & m_A, & n_A,
+  ////          buff_A, & ldim_A, buff_sv,
+  ////          buff_U, & ldim_U, buff_V, & ldim_V,
+  ////          & dwork, & lwork, & info );
+  dgesdd_( & all, & m_A, & n_A,
            buff_A, & ldim_A, buff_sv,
            buff_U, & ldim_U, buff_V, & ldim_V,
-           & dwork, & lwork, & info );
+           & dwork, & lwork, buff_Iworkspace, & info );
   if( info != 0 ) {
-    fprintf( stderr, " *** Info after dgesvd_: %d \n", info );
+    fprintf( stderr, " *** Info after dgesdd_: %d \n", info );
   }
   lwork = ( int ) dwork;
-  //// printf( "  Optimal lwork: %d\n", lwork );
+  //// printf( " Optimal lwork: %d\n", lwork );
 
-  // Create Workspace.
-  //// FLA_Obj_create( FLA_Obj_datatype( A ), lwork, 1, 0, 0, & Workspace );
-  buff_Workspace = ( double * ) malloc( lwork * sizeof( double ) );
+  // Create real workspace.
+  //// FLA_Obj_create( FLA_Obj_datatype( A ), lwork, 1, 0, 0, & Rworkspace );
+  buff_Rworkspace = ( double * ) malloc( lwork * sizeof( double ) );
 
-  // Call to SUBROUTINE DGESVD( JOBU, JOBVT, M, N, A, LDA, S, U, LDU, VT, LDVT,
-  //                            WORK, LWORK, INFO )
-  dgesvd_( & all, & all, & m_A, & n_A,
+  // Compute singular values and vectors.
+  //// dgesvd_( & all, & all, & m_A, & n_A,
+  ////          buff_A, & ldim_A, buff_sv,
+  ////          buff_U, & ldim_U, buff_V, & ldim_V,
+  ////          buff_Rworkspace, & lwork, & info );
+  dgesdd_( & all, & m_A, & n_A,
            buff_A, & ldim_A, buff_sv,
            buff_U, & ldim_U, buff_V, & ldim_V,
-           buff_Workspace, & lwork, & info );
+           buff_Rworkspace, & lwork, buff_Iworkspace, & info );
   if( info != 0 ) {
-    fprintf( stderr, " *** Info after dgesvd_: %d \n", info );
+    fprintf( stderr, " *** Info after dgesdd_: %d \n", info );
   }
 
-  // Remove object Work.
-  //// FLA_Obj_free( & Workspace );
-  free( buff_Workspace );
+  // Remove real workspace.
+  //// FLA_Obj_free( & Rworkspace );
+  free( buff_Rworkspace );
+
+  // Remove integer workspace.
+  //// FLA_Obj_free( & Iworkspace );
+  free( buff_Iworkspace );
 
   return 0;
 }
