@@ -112,12 +112,12 @@ We offer two variants of the code:
 
 * LAPACK-compatible pure C code: 
   It uses compact WY transformations.
-  The sources are stored in the folder `lapack_compatible_sources`.
+  The sources are stored in the `lapack_compatible_sources` folder.
 
 * LAPACK-like libflame code: 
   It uses compact UT transformations.
   This code resembles the algorithm in the paper.
-  The sources are stored in the folder `libflame_sources`.
+  The sources are stored in the `libflame_sources` folder.
 
 ### Details of LAPACK-compatible pure C code: 
 
@@ -162,8 +162,8 @@ int NoFLA_UTV_WY_blk_var2(
 //
 ```
 
-This routine is stored in the file `NoFLA_UTV_WY_blk_var2.c`.
-The file `simple_test.c` contains a main program to test it.
+This routine is stored in the `NoFLA_UTV_WY_blk_var2.c` file.
+The `simple_test.c` file contains a main program to test it.
 
 ### Details of LAPACK-like libflame code: 
 
@@ -197,7 +197,7 @@ FLA_Error FLA_UTV_UT_blk_var1( FLA_Obj A, int build_u, FLA_Obj U,
 //
 ```
 
-This routine is stored in the file `FLA_UTV_UT_blk_var1.c`.
-The file `simple_test.c` contains a main program to test it.
+This routine is stored in the `FLA_UTV_UT_blk_var1.c` file.
+The `simple_test.c` file contains a main program to test it.
 
 
