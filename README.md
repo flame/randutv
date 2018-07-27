@@ -90,19 +90,33 @@ We ask those who benefit from this work
 to cite the following reports and articles:
 
 ```
+@ARTICLE{2018randTUVACMTOMS,
+  author  = {{Martinsson}, P.-G. and {Quintana-Orti}, G. and {Heavner}, N.},
+  title   = "{randUTV: A blocked randomized algorithm for computing 
+              a rank-revealing UTV factorization}",
+  journal = "{ACM} Transactions on Mathematical Software",
+  volume  = "in press",
+  number  = "",
+  pages   = "",
+  month   = "",
+  year    = "2018",
+  ISSN    = "0098-3500"
+}
+
 @ARTICLE{2017arXiv170300998M,
-   author = {{Martinsson}, P.-G. and {Quintana-Orti}, G. and {Heavner}, N.
-	},
-    title = "{randUTV: A blocked randomized algorithm for computing a rank-revealing UTV factorization}",
-  journal = {ArXiv e-prints},
-archivePrefix = "arXiv",
-   eprint = {1703.00998},
- primaryClass = "math.NA",
- keywords = {Mathematics - Numerical Analysis},
-     year = 2017,
-    month = mar,
-   adsurl = {http://adsabs.harvard.edu/abs/2017arXiv170300998M},
-  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+  author        = {{Martinsson}, P.-G. and {Quintana-Orti}, G. 
+                   and {Heavner}, N.},
+  title         = "{randUTV: A blocked randomized algorithm for computing 
+                    a rank-revealing UTV factorization}",
+  journal       = {ArXiv e-prints},
+  archivePrefix = "arXiv",
+  eprint        = {1703.00998},
+  primaryClass  = "math.NA",
+  keywords      = {Mathematics - Numerical Analysis},
+  year          = 2017,
+  month         = mar,
+  adsurl        = {http://adsabs.harvard.edu/abs/2017arXiv170300998M},
+  adsnote       = {Provided by the SAO/NASA Astrophysics Data System}
 }
 ```
 
