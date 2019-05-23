@@ -90,17 +90,25 @@ We ask those who benefit from this work
 to cite the following reports and articles:
 
 ```
-@ARTICLE{2018randTUVACMTOMS,
-  author  = {{Martinsson}, P.-G. and {Quintana-Orti}, G. and {Heavner}, N.},
-  title   = "{randUTV: A blocked randomized algorithm for computing 
-              a rank-revealing UTV factorization}",
-  journal = "{ACM} Transactions on Mathematical Software",
-  volume  = "in press",
-  number  = "",
-  pages   = "",
-  month   = "",
-  year    = "2018",
-  ISSN    = "0098-3500"
+@article{Martinsson:2019:RBR:3314951.3242670,
+ author = {Martinsson, P. G. and Quintana-Ort\'{\i}, G. and Heavner, N.},
+ title = {randUTV: A Blocked Randomized Algorithm for Computing a Rank-Revealing UTV Factorization},
+ journal = {ACM Trans. Math. Softw.},
+ issue_date = {March 2019},
+ volume = {45},
+ number = {1},
+ month = mar,
+ year = {2019},
+ issn = {0098-3500},
+ pages = {4:1--4:26},
+ articleno = {4},
+ numpages = {26},
+ url = {http://doi.acm.org/10.1145/3242670},
+ doi = {10.1145/3242670},
+ acmid = {3242670},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {Numerical linear algebra, high performance, randomized methods, rank-revealing matrix factorization, singular value decomposition},
 }
 
 @ARTICLE{2017arXiv170300998M,
