@@ -1,12 +1,17 @@
 #
 # Definitions of variables for compiling.
 #
-LAPACK_LIB = /usr/local/mylib/lapack/liblapack_340_p4b64_gf.a
-BLAS_LIB   = /usr/local/mylib/lapack/librefblas_340_p4b64_gf.a
 
-CC         = gcc
+# openblas on ubuntu:
+LAPACK_LIB = /usr/lib/openblas-base/liblapack.a
+#/usr/local/mylib/lapack/liblapack_340_p4b64_gf.a
+BLAS_LIB   = /usr/lib/openblas-base/libblas.a
+#/usr/local/mylib/lapack/librefblas_340_p4b64_gf.a
+
+# gcc 8:
+CC         = gcc-8
 CCFLAGS    = -O -fopenmp
-LD         = gcc
+LD         = gcc-8
 LDFLAGS    = -O -fopenmp
 
 #
