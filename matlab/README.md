@@ -1,8 +1,19 @@
-MATLAB interface to randutv, via the lapack-compatible version.
+### MATLAB interface to randutv, specifically the lapack-compatible version.
 
-(Uses mwrap by David Bindel, although user does not need to know this.)
+## Author (interface only)
 
-Alex Barnett 11/13/19
+* Alex Barnett
+  Center for Computational Mathematics
+  Flatiron Institute
+  NY, NY 10010, USA.
+
+## Description
+
+This is a MATLAB wrapper to the lapack-compatible randUTV
+implementation.  It was built using mwrap by David Bindel; however,
+mwrap is not needed for compilation of the MEX exectuable.
+
+## Usage
 
 From this directory, check in the `makefile` the choice of compiler, etc,
 then
@@ -19,6 +30,8 @@ to check it worked. Run
 speed_test
 ```
 to compare randUTV against MATLAB's full SVD.
+
+## Documentation
 
 Here is the documentation:
 ```
@@ -43,7 +56,10 @@ Here is the documentation:
     could be extended so that input A is overwritten instead by T.
 ```
 
-Tasks remaining: no-U,V version; complex version.
+## Tasks remaining
+
+ * no-U,V interface.
+ * complex, single-precision versions, etc
 
 
 
