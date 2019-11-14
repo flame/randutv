@@ -1,19 +1,20 @@
-### MATLAB interface to randutv, specifically the lapack-compatible version.
+## MATLAB interface to randutv, specifically the lapack-compatible version.
 
-## Author (interface only)
+### Author (interface only)
 
 * Alex Barnett
   Center for Computational Mathematics
   Flatiron Institute
   NY, NY 10010, USA.
 
-## Description
+### Description
 
 This is a MATLAB wrapper to the lapack-compatible randUTV
-implementation.  It was built using mwrap by David Bindel; however,
-mwrap is not needed for compilation of the MEX exectuable.
+implementation. It links against MATLAB's own blas/lapack which are
+based on MKL. The interface was built using `mwrap` by David Bindel;
+however, this is not needed for compilation of the MEX exectuable.
 
-## Usage
+### Usage
 
 From this directory, check in the `makefile` the choice of compiler, etc,
 then
@@ -31,9 +32,8 @@ speed_test
 ```
 to compare randUTV against MATLAB's full SVD.
 
-## Documentation
+### Documentation
 
-Here is the documentation:
 ```
  RANDUTV  compute UTV decomposition (approximate SVD) via randomized methods
 
@@ -56,7 +56,7 @@ Here is the documentation:
     could be extended so that input A is overwritten instead by T.
 ```
 
-## Tasks remaining
+### Tasks remaining
 
  * no-U,V interface.
  * complex, single-precision versions, etc
