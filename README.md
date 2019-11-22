@@ -130,16 +130,21 @@ to cite the following reports and articles:
 
 ## Details
 
-We offer two variants of the code:
+We offer two variants of the code for computing the randUTV factorization,
+each one in a different directory:
 
 * LAPACK-compatible pure C code: 
-  It uses compact WY transformations.
-  The sources are stored in the `lapack_compatible_sources` folder.
+  This code uses compact WY transformations. The sources are stored 
+  in the `lapack_compatible_sources` folder.
 
 * LAPACK-like libflame code: 
-  It uses compact UT transformations.
-  This code resembles the algorithm in the paper.
-  The sources are stored in the `libflame_sources` folder.
+  This code uses compact UT transformations and it resembles the algorithm 
+  in the paper. The sources are stored in the `libflame_sources` folder.
+
+The matlab folder contains the sources of the `NoFLA_UTV_WY_blk_var2` routine
+(LAPACK-compatible code) for computing the randUTV factorization 
+modified to be employed from Matlab. 
+The original code was adapted to Matlab by Alex Barnett, Flatiron Institute.
 
 ### Details of LAPACK-compatible pure C code: 
 
